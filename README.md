@@ -3,7 +3,10 @@
 Luna
 ===
 
-Luna is an high-level, highly customizable data analytics framewrok. Its roots are based on the physics ans math which governs the reality around us, ensuring a coherent handling of almost any kind of data. Just to give an idea, one of the most basic data structures of Luna is the Space, a representation of a mathematical n-dimensional space; while one of the most evolved ones is the PhysicalDataTimeSeries, a time series specifically designed to hold physical quanities which is very useful for the sensors data in the Internet of Things world. The result is an extremely flexible framework that can suit a huge variety of use cases.
+Luna is an high-level, highly customizable data analytics framewrok. Its roots are based on the physics ans math which governs the reality around us, ensuring a coherent handling of almost any kind of data. The result is an extremely flexible framework that can suit a huge variety of use cases.
+
+
+Just to give an idea, one of the most basic data structures of Luna is the Space, a representation of a mathematical n-dimensional space; while one of the most evolved ones is the PhysicalDataTimeSeries, a time series specifically designed to hold physical quanities which is very useful for the sensors data in the Internet of Things world. 
 
 The core pourpose of Luna is simple: take data out from a storage, process/aggregate it with some operations, put data in a storage.
 
