@@ -62,11 +62,17 @@ class SQLiteDataTimeStream(DataTimeStream):
 
     def __next__(self):
         
-        # The following will raise StopIteration for us to stop the iterator
-        db_data = self.query_cur.next()
+        try:
+            # Python 2.x
+            # The following will raise StopIteration for us to stop the iterator
+            db_data = self.query_cur.next()
         
-        force_sensors_names = False
-        
+        except AttributeError:
+            # Python 3.x
+            db_data = self.query_cur.fetch_one()
+            if not db_data:
+                raise StopIteration()
+                
         if not self.labels:
             if self.type == 'Points':
                 self.labels = self.sensor.Points_data_labels  
@@ -74,7 +80,6 @@ class SQLiteDataTimeStream(DataTimeStream):
                 self.labels = self.sensor.Slots_data_labels 
             else:
                 raise ConsistencyException('Got unknown type: {}'.format(self.type))
-
 
         # We will have to instantiate the TimePoint from the db data.
 
