@@ -1,6 +1,6 @@
 
 from datetime import datetime
-from luna.common.exceptions import InputException
+from luna.common.exceptions import InputException, ConsistencyException
 from luna.spacetime.time import dt_from_s
 from luna.datatypes.adimensional import *
 from luna.datatypes.dimensional import *
@@ -20,8 +20,10 @@ class DataPoint(Point):
         super(DataPoint, self).__init__(*argv, **kwargs)
     def __repr__(self):
         return '{}, labels: {}, values: {}, first data label: {}, with value: {}'.format(self.__class__.__name__, self.labels, self.values, self.data.labels[0], self.data.values[0])
-    # TODO: check this
+    # TODO: check this (and export the isintsnace check in the base classes). Also, call the super.__eq__ and then add these checks!
     def __eq__(self, other): 
+        if not isinstance(self, other.__class__):
+            return False
         return (self.values == other.values) and (self.labels == other.labels) and (self.data == other.data)       
 
 class DataSlot(Slot):
@@ -31,6 +33,11 @@ class DataSlot(Slot):
         super(DataSlot, self).__init__(*argv, **kwargs)    
     def __repr__(self):
         return '{}, labels: {}, values: {}, data_labels: {}, data_values: {}'.format(self.__class__.__name__, self.labels, self.values, self.data.labels, self.data.values)
+    # TODO: check this (and export the isintsnace check in the base classes). Also, call the super.__eq__ and then add these checks!
+    def __eq__(self, other): 
+        if not isinstance(self, other.__class__):
+            return False
+        return  (self.labels == other.labels) and (self.data == other.data)       
  
 
 
@@ -94,15 +101,19 @@ class TimeSeries(object):
     def __repr__(self):
         if self._data:
             if isinstance(self._data[0], TimeSlot):
-                return '{} of {} {} ({}), first TimeSlot start: {}, last TimeSLot start: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].type, self._data[0].start.dt, self._data[-1].start.dt)                
+                return '{} of {} {} ({}), first TimeSlot start: {}, last TimeSLot start: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].type, self._data[0].start.dt, self._data[-1].start.dt, self.tz)                
             else:    
-                return '{} of {} {}, start: {}, end: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].dt, self._data[-1].dt)
+                return '{} of {} {}, start: {}, end: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].dt, self._data[-1].dt, self.tz)
         else:
-            return '{} of 0 None, start: None, end: None'.format(self.__class__.__name__)
+            return '{} of 0 None, start: None, end: None, timezone: {}'.format(self.__class__.__name__, self.tz)
 
-    # TODO: check this
-    def __eq__(self, other): 
+    def __eq__(self, other):
+        if not isinstance(self, other.__class__):
+            return False        
         return ((self._data == other._data) and (self.tz == other.tz))
+
+    def __neq__(self, other):
+        return not self.__eq(other)
 
     def __len__(self):
         return len(self._data)
@@ -159,7 +170,7 @@ class TimeSeries(object):
                 # TimePoint, we are sure that there is a time dimension ("t") to check
                 if this_t <= last_t:
                     raise InputException("Sorry, you are trying to append data with a timestamp which preceeds (or is equal to) the last one stored. As last I have {}, and I got {}"
-                                     .format(dt_from_s(this_t, tz=self.tz), dt_from_s(last_t, tz=self.tz)))
+                                     .format(dt_from_s(last_t, tz=self.tz), dt_from_s(this_t, tz=self.tz)))
                 
                 # If the data of timeData_Point_or_Slot is dimensional (lives in a Space, ex DimensionalData), check compatibility
                 if isinstance(timeData_Point_or_Slot.data, Space):
@@ -238,9 +249,69 @@ class TimeSeries(object):
             else:
                 raise Exception("Internal error when looking for the given timestamp (unconsistent condition)")
             count += 1
-        
+            
+    #------------------
+    # ALPHA code
+    #------------------
+    
+    # Data-access apart form timeSerie[timestamp] and iterator
+    @property
+    def items(self):
+        return self._data
 
+
+    # Data incapsulator
+    class Data(object):
+        def __init__(self,data):
+            self.link = data
         
+        @property
+        def labels(self):
+            if self.link:
+                return self.link[0].data.labels
+            else:
+                return None
+        
+        @property
+        def type(self):
+            if self.link:
+                return type(self.link[0])
+            else:
+                return None        
+
+        @property
+        def first(self):
+            if self.link:
+                return self.link[0]
+            else:
+                return None   
+
+
+    @property
+    def data(self):
+        return self.Data(self._data)
+
+    def is_empty(self):
+        return (False if self._data else True)        
+
+    def filter(self, from_dt, to_dt):
+        
+        # Initialize new TimeSeries to return as container
+        filtered_timeSereies = TimeSeries(tz=self.tz, index=self.index)
+        
+        logger.debug('Filtering time series from %s to %s', from_dt, to_dt)
+        for item in self:
+            if isinstance(item, TimePoint):
+                if item.dt >= from_dt and item.dt < to_dt:
+                    filtered_timeSereies.append(item)   
+            elif isinstance(item, TimeSlot):
+                if item.start.dt >= from_dt and item.end.dt <= to_dt:
+                    filtered_timeSereies.append(item)          
+            else:
+                raise ConsistencyException('TimeSereie with neither TimePoint or TimeSlots?! It has {}'.format(type(item)))            
+        
+        return filtered_timeSereies
+
 
 
 #---------------------------------------------
@@ -249,7 +320,7 @@ class TimeSeries(object):
 
 # Put in auxiliary
 class DataTimeStream(object):
-    ''' A time stream is a stream of DataTimePoints or DataTimeSlots. it has to be implemented by the data source (storage)'''
+    ''' A data time stream is a stream of DataTimePoints or DataTimeSlots. it has to be implemented by the data source (storage)'''
     
     # Iterator
     def __iter__(self):
@@ -262,33 +333,51 @@ class DataTimeStream(object):
 class StreamingTimeSeries(TimeSeries):
     '''In the streming Time Series, the iterator is rewritten to use a DataTimeStream. Not-streaming operatiosn
     (like accessing the index) are supported, but they triggers the compelte navigation of the DataTimeStream wich
-    can be very large to be loaded in RAM, or just neverending in case of a real tiem stream'''
+    can be very large to be loaded in RAM, or just neverending in case of a real time stream'''
     
     # Init to save the DataTimeStream   
     def __init__(self, *args, **kwargs):
+        self.iterator = None
+        self.cached = kwargs.pop('cached', False)
         self.dataTimeStream = kwargs.pop('dataTimeStream')
         super(StreamingTimeSeries, self).__init__(*args, **kwargs)
 
     def __repr__(self):
-        return '{}, start=NotImp, last seen=NotImp'.format(self.__class__.__name__)
+        if self.__data:
+            return '{}, start={}, last seen={}'.format(self.__class__.__name__, self.__data[0], self.__data[-1])
+        else:
+            return '{}, start=NotImp, last seen=NotImp'.format(self.__class__.__name__)
 
-    # Iterator incapsulator (TODO: improve this to avoid using __iter__() and next()? )
     def __iter__(self):
-        return self.dataTimeStream.__iter__()
+        return self
 
     def next(self):
-        return self.dataTimeStream.next()
+        if not self.iterator:
+            self.iterator = self.dataTimeStream.__iter__()
+        next = self.iterator.next()
+        if self.cached:
+            self.__data.append(next)
+        return next
 
     # ..but if someone access the _data somehow, we have to get the entire TimeSeries by going
     # trought all the iteraor, and we issue a warning
     
     @property
     def _data(self):
-        if not self.__data:
-            logger.warning('You are forcing a StreamingTimeSeries to work in a non-streaming way!')
 
-            # Create the data going trought all the iterator
-            self.__data = [item for item in self] 
+        if self.iterator and not self.cached:
+            raise NotImplementedError('Sorry, you cannot access data of a not cached StreamingTimeSeries once you iterated over it. If you want to do so, use the argument "cached=True" (and kee an open eye on the RAM usage)')
+        
+        if not self.iterator and not self.cached:
+            if not self.__data:
+                logger.warning('You are forcing a StreamingTimeSeries to work in a non-streaming way!')
+                # Create the data going trought all the iterator
+                self.__data = [item for item in self]
+                
+        if self.cached:
+            if not self.__data:
+                # Create the data going trought all the iterator
+                self.__data = [item for item in self]
 
         return self.__data
         
@@ -296,8 +385,8 @@ class StreamingTimeSeries(TimeSeries):
     def _data(self, value):
         self.__data=value
 
-
-
+    def force_load(self):
+        self.__data = [item for item in self]
 
 #---------------------------------------------
 # Physical  quantities
@@ -326,7 +415,7 @@ class PhysicalDataSlot(DataSlot):
         if 'data' in kwargs and not isinstance(kwargs['data'], PhysicalDimensionalData):
             raise Exception('No PhysicalDimensionalData found in data')
         
-        super(PhysicalDataPoint, self).__init__(*argv, **kwargs)
+        super(PhysicalDataSlot, self).__init__(*argv, **kwargs)
 
 
 # Composite..

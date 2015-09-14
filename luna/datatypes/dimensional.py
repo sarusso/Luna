@@ -74,7 +74,6 @@ class Base(object):
 
     # Euqality 
     def __eq__(self, other):
-
         if (self.has_labels and self.has_values):
             return ((self.labels == other.labels) and (self.values == other.values))
         elif self.has_labels:
@@ -256,6 +255,8 @@ class Coordinates(Base):
             smartinit = False       
             # Set values
             self._values = kwargs.pop('values', [])
+            if not isinstance(self._values,list):
+                raise InputException('I got values which are not a list (got "{}" of type "{}")'.format(self._values, type(self._values)))
 
         # Check that values have been set somehow
         if not self.values:
@@ -459,7 +460,7 @@ class Slot(Region):
             if type_derived:
                 for i in range(len(self.start.values)):
                     if not self.start.values[i] < self.end.values[i]:
-                        raise InputException('{}: Start after end on dimension #{}'.format(self.classname,i))
+                        raise InputException('{}: Start equal or after end on dimension #{}'.format(self.classname,i))
                 
 
     # Handle end 
@@ -607,6 +608,8 @@ class TimeSlot(Slot):
     # Ensure start,end = TimePoint()
     def __init__(self, *args, **kwargs):
         
+        # Handle a floating TimeSlot. The Slot (actually, the Region) an anchor (if not floating) 
+        # or the labels of the space where it will live in (if floating)
         if 'start' not in kwargs:
             kwargs['labels'] = 't'
         

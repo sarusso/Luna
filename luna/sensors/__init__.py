@@ -1,5 +1,5 @@
 from luna.datatypes.composite import DataTimePoint, DataTimeSlot
-from luna.datatypes.composite import PhysicalDataPoint, PhysicalDataSlot, DimensionalDataTimePoint, PhysicalDimensionalData
+from luna.datatypes.composite import PhysicalDataPoint, PhysicalDataSlot, DimensionalDataTimePoint, PhysicalDimensionalData, PhysicalDataTimeSlot
 from luna.datatypes.composite import TimeSeries
 from luna.datatypes.composite import PhysicalDataTimePoint
 from luna.datatypes.dimensional import TimeSlot
@@ -15,6 +15,9 @@ class Sensor(object):
     # An instantiated sensor will have a (unique) id
     def __init__(self, id):
         self.id = id
+        
+    def __repr__(self):
+        return '{} - {}'.format(self.__class__.__name__, self.id)
     
     # A sensor has its own type_ID and prodeuce some data:    
         
@@ -86,6 +89,8 @@ class TimeBasedPhysicalDataSensor(TimeBasedSensor):
     
     data_type   = PhysicalDataTimePoint
     data_data_type = PhysicalDimensionalData
+    
+    data_slot_type = PhysicalDataTimeSlot
     
     # TODO: handle intensive/extensive here?
 

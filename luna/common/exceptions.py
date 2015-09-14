@@ -5,3 +5,6 @@ class InputException(Exception):
     
 class ConsistencyException(Exception):
     pass
+    
+class StorageException(Exception):
+    pass
