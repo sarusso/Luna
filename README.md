@@ -18,7 +18,20 @@ A suite of precessing/aggregation oerations and of common storages is provided w
 
 Luna is very very well designed from a sacalibility point of view: there are no bottlenecks, and all the data processing pipeline can be run in a streming-fashion way (i.e. using Hadoop Streaming to process Terabytes of data). It anyway runs of the box on your Laptop using SQLite for storing data, and it can be integrated in bigger projects just by writing a custom storage module.
 
+Builds ![Tarvis Luna status build](https://api.travis-ci.org/sarusso/Luna.svg) 
+---
+Every commit on Luna codebase is tested with Tarvis. This ensures a 
+basic Continuos Integration check. [Check statur on Tarvis](https://travis-ci.org/sarusso/Luna/).
 
+
+Documentation
+---
+Cooming soon
+
+
+Demos
+---
+Coming soon
 
 
 
