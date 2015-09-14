@@ -60,7 +60,7 @@ class SQLiteDataTimeStream(DataTimeStream):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         
         # The following will raise StopIteration for us to stop the iterator
         db_data = self.query_cur.next()
@@ -100,6 +100,9 @@ class SQLiteDataTimeStream(DataTimeStream):
 
         return DataTime_Point_or_Slot     
 
+    # Python 2.x
+    def next(self):
+        return self.__next__()
 
 #-------------------------
 # Main storage class

@@ -191,19 +191,22 @@ class TimeSeries(object):
             self.index[timeData_Point_or_Slot.t] = len(self._data)
           
         self._data.append(timeData_Point_or_Slot)
-        
-        
+              
     # Iterator
     def __iter__(self):
         self.current = -1
         return self
 
-    def next(self):
+    def __next__(self):
         if self.current > len(self._data)-2:
             raise StopIteration
         else:
             self.current += 1
             return self._data[self.current]           
+
+    # Python 2.x
+    def next(self):
+        return self.__next__()
 
     # Index
     def __getitem__(self, key):
@@ -326,9 +329,12 @@ class DataTimeStream(object):
     def __iter__(self):
         raise NotImplementedError
 
-    def next(self):
+    def __next__(self):
         raise NotImplementedError
 
+    # Python 2.x
+    def next(self):
+        return self.__next__()
 
 class StreamingTimeSeries(TimeSeries):
     '''In the streming Time Series, the iterator is rewritten to use a DataTimeStream. Not-streaming operatiosn
@@ -351,13 +357,17 @@ class StreamingTimeSeries(TimeSeries):
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         if not self.iterator:
             self.iterator = self.dataTimeStream.__iter__()
         next = self.iterator.next()
         if self.cached:
             self.__data.append(next)
         return next
+    
+    # Python 2.x
+    def next(self):
+        return self.__next__()
 
     # ..but if someone access the _data somehow, we have to get the entire TimeSeries by going
     # trought all the iteraor, and we issue a warning
