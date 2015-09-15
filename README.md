@@ -1,5 +1,6 @@
 
-**WARNING: this is alpha software under heavy development. First beta release is foreseen for October 2015.**
+**WARNING: this is alpha software under heavy development.**  
+**First beta release is foreseen for October 2015.**
 
 If you are interested in contributing please drop me a line at stefano.russo@gmail.com.
 
