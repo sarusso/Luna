@@ -2,13 +2,16 @@ language: python
 python:
   #- "2.6"
   - "2.7"
+  # Support for Python 3 under development
   #- "3.2"
   #- "3.3"
   #- "3.4"
   #- "3.5.0b3"
   #- "3.5-dev"
   #- "nightly"
+
 # Command to install dependencies
 install: "pip install -r requirements.txt"
+
 # Command to run tests
 script: python -m unittest discover
