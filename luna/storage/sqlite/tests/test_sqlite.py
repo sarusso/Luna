@@ -3,7 +3,7 @@ from luna.datatypes.composite import TimeSeries, DataTimePoint, PhysicalDataTime
 from luna.datatypes.dimensional import *
 from luna.common.exceptions import InputException, StorageException
 from luna.spacetime.time import dt
-from luna.datatypes.dimensional import TimePoint, Point, PhysicalDimensionalData
+from luna.datatypes.dimensional import TimePoint, Point, PhysicalData
 from luna.sensors import VolumetricSensorV1
 from luna.storage.sqlite import sqlite
 
@@ -39,14 +39,14 @@ class test_sqlite(unittest.TestCase):
         # Generate 10 points TimeSeries with flowrate sensor
         timeSeries = TimeSeries()
         for i in range(10):
-            data = PhysicalDimensionalData( labels = ['flowrate_m3s'], values = [20.6+i] ) 
+            data = PhysicalData( labels = ['flowrate_m3s'], values = [20.6+i] ) 
             physicalDataTimePoint = PhysicalDataTimePoint(t = 1436022000 + (i*60), tz="Europe/Rome", data=data)
             timeSeries.append(physicalDataTimePoint)
 
         # Generate 10 points TimeSeries with light sensor
         timeSeries_light = TimeSeries()
         for i in range(10):
-            data = PhysicalDimensionalData( labels = ['light_pct'], values = [60.6+i] ) 
+            data = PhysicalData( labels = ['light_pct'], values = [60.6+i] ) 
             physicalDataTimePoint = PhysicalDataTimePoint(t = 1436022000 + (i*60), tz="Europe/Rome", data=data)
             timeSeries_light.append(physicalDataTimePoint)
         
@@ -104,7 +104,7 @@ class test_sqlite(unittest.TestCase):
         # Generate 10 slots TimeSeries with flowrate sensor aggregated data
         timeSeries = TimeSeries()
         for i in range(10):
-            data = PhysicalDimensionalData(labels = ['flowrate_m3s_i_AVG', 'flowrate_m3s_i_MIN', 'flowrate_m3s_i_MAX', 'volume_m3_e_TOT'],
+            data = PhysicalData(labels = ['flowrate_m3s_i_AVG', 'flowrate_m3s_i_MIN', 'flowrate_m3s_i_MAX', 'volume_m3_e_TOT'],
                                             values = [20.6+i,20.6+i,20.6+i,20.6+i] ) 
             physicalDataTimeSlot = PhysicalDataTimeSlot(start = TimePoint(t=1436022000 + (i*60),tz="Europe/Rome"), 
                                                         end = TimePoint(t=1436022000 + ((i+1)*60), tz="Europe/Rome"),
@@ -114,7 +114,7 @@ class test_sqlite(unittest.TestCase):
         # Generate 10 points TimeSeries with light sensor aggregated data
         timeSeries_light = TimeSeries()
         for i in range(10):
-            data = PhysicalDimensionalData(labels = ['light_pct_i_AVG'], values = [20.6+i] ) 
+            data = PhysicalData(labels = ['light_pct_i_AVG'], values = [20.6+i] ) 
             physicalDataTimeSlot = PhysicalDataTimeSlot(start = TimePoint(t=1436022000 + (i*60),tz="Europe/Rome"), 
                                                         end = TimePoint(t=1436022000 + ((i+1)*60), tz="Europe/Rome"),
                                                         data=data, type=TimeSlotType('60s'))
@@ -145,7 +145,6 @@ class test_sqlite(unittest.TestCase):
         # TODO: this is not correct unit test of the put and get. It is testing them at the same time!
         timeSeriesSQLiteStorage.put(timeSeries, sensor=volumetricSensorV1_1, right_to_initialize=True)
         out_streamingTimeSeries  = timeSeriesSQLiteStorage.get(sensor=volumetricSensorV1_1, timeSlotType=TimeSlotType('60s'), cached=True)
-        
         self.assertEqual(out_streamingTimeSeries, timeSeries)
 
         # Test get of no data:

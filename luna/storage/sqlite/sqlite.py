@@ -1,4 +1,4 @@
-from luna.datatypes.dimensional import PhysicalDimensionalData, TimePoint, TimeSlot
+from luna.datatypes.dimensional import PhysicalData, TimePoint, TimeSlot
 from luna.datatypes.composite import TimeSeries, PhysicalDataTimePoint, PhysicalDataTimeSlot, DataTimePoint, DataPoint, DataTimeSlot
 from luna.storage import Storage
 from luna.spacetime.time import s_from_dt
@@ -29,12 +29,9 @@ def trunc(invalue, digits):
 #          WARNING: alpha code                   #
 #------------------------------------------------#
 
-
+# TODO: naming?
 # SQLiteDataTimeStream -> SQLiteDataStream
 # TimeSeriesSQLiteStorage -> SQLiteStorage
-
-
-
 
 
 #-------------------------
@@ -44,66 +41,91 @@ def trunc(invalue, digits):
 class SQLiteDataTimeStream(DataTimeStream):
     ''' Data time stream implementation in SQLite'''
      
-    def __init__(self, query_cur, sensor, type, labels=None, truncate=None):
+    def __init__(self, query_cur, sensor, data_type, labels=None, truncate=None):
+               
+        # self.sensor.data_type      = PhysicalDataTimePoint
+        # self.sensor.data_data_type = PhysicalDimensionalData
+        # data_slot_type
         
-        self.sensor    = sensor
+        # Use the sensor for now, switch to pass these two later*
+
+        # Points        
+        self.Points_type        = sensor.Points_type
+        self.Points_data_labels = sensor.Points_data_labels
+        
+        # Slots
+        self.Slots_type         = sensor.Slots_type
+        self.Slots_data_labels  = sensor.Slots_data_labels
+
+        # Check valid type 
+        if not ( issubclass(data_type, DataTimePoint)  or issubclass(data_type, DataTimeSlot) ):
+            raise InputException('With this datastream type must be instance of DataTimePoint or DataTimeSlot')
+        
         self.query_cur = query_cur
-        
-        if type not in ['Points','Slots']:
-            raise InputException('type must be either Points or Slots')
-            
-        self.type = type
+        self.data_type = data_type
         self.truncate = truncate
-        self.labels = labels
+        self.labels = None
+        
         
     # Iterator
     def __iter__(self):
         return self
 
     def __next__(self):
+            
+        # TODO: do we like a while True here?
+        while True:
+            
+            try:
+                # Python 2.x
+                # The following will raise StopIteration for us to stop the iterator
+                db_data = self.query_cur.next()
+            
+            except AttributeError:
+                # Python 3.x
+                db_data = self.query_cur.fetch_one()
+                if not db_data:
+                    raise StopIteration()
+
+            if not self.labels:
+                if issubclass(DataTimePoint, self.data_type):
+                    self.labels = self.Points_data_labels  
+                elif issubclass(DataTimeSlot, self.data_type):
+                    self.labels = self.Slots_data_labels
+                else:
+                    raise ConsistencyException('Got unknown type: {}'.format(self.data_type))
+    
+            # We will have to instantiate the TimePoint from the db data.
+    
+            # Note:
+            # self.sensor.data_type      = PhysicalDataTimePoint
+            # self.sensor.data_data_type = PhysicalDimensionalData
         
-        try:
-            # Python 2.x
-            # The following will raise StopIteration for us to stop the iterator
-            db_data = self.query_cur.next()
-        
-        except AttributeError:
-            # Python 3.x
-            db_data = self.query_cur.fetch_one()
-            if not db_data:
-                raise StopIteration()
-                
-        if not self.labels:
-            if self.type == 'Points':
-                self.labels = self.sensor.Points_data_labels  
-            elif self.type == 'Slots':
-                self.labels = self.sensor.Slots_data_labels 
+            if issubclass(DataTimePoint, self.data_type):
+                values = list(db_data[2:])
+                try:
+                    data = self.Points_type.data_type(labels=self.labels, values = values)
+                except InputException, e:
+                    logger.error("Could not initialiaze {} with labels={} and values={}, got error: {}".format(self.Points_data_type, self.labels, values, e)) 
+                else:
+                    DataTime_Point_or_Slot = self.Points_type(t=db_data[0], tz = "Europe/Rome", data=data) #TODO: validity_interval=self.sensor.Points_validity_interval)
+    
+            elif issubclass(DataTimeSlot, self.data_type):
+                values = list(db_data[4:])
+                try:
+                    data = self.Slots_type.data_type(labels=self.labels, values = values)
+                except:
+                    logger.error("Could not initialiaze {} with labels={} and values={}".format(self.Slots_data_type, self.labels, values)) 
+                else:    
+                    DataTime_Point_or_Slot = self.Slots_type(start = TimePoint(t=db_data[0], tz = "Europe/Rome"),
+                                                             end   = TimePoint(t=db_data[1], tz = "Europe/Rome"),
+                                                             data  = data, ) # TODO: add type=SlotType(type_shprtname_from_db)
             else:
-                raise ConsistencyException('Got unknown type: {}'.format(self.type))
-
-        # We will have to instantiate the TimePoint from the db data.
-
-        # Note:
-        # self.sensor.data_type      = PhysicalDataTimePoint
-        # self.sensor.data_data_type = PhysicalDimensionalData
-
-        if self.type == 'Points':
-            values = list(db_data[2:])
-            data = self.sensor.data_data_type(labels=self.labels, values = values)
-            DataTime_Point_or_Slot = self.sensor.data_type(t=db_data[0], tz = "Europe/Rome", data=data) #TODO: validity_interval=self.sensor.Points_validity_interval)
-
-        elif self.type == 'Slots':
-            values = list(db_data[4:])
+                raise ConsistencyException('Unknown type, got {}'.format(self.data_type))  
             
-            data = self.sensor.data_data_type(labels=self.labels, values = values)
-            DataTime_Point_or_Slot = self.sensor.data_slot_type(start = TimePoint(t=db_data[0], tz = "Europe/Rome"),
-                                                                end   = TimePoint(t=db_data[1], tz = "Europe/Rome"),
-                                                                data=data, ) # TODO: add type=SlotType(type_shprtname_from_db)
-            
-        # This get when a validty of a Point ends. For TimeSlots and seconds, it is a bit of overhead
-        #_ = DataTime_Point_or_Slot.validity_interval.duration_s()
-
-        return DataTime_Point_or_Slot     
+            # This get when a validty of a Point ends. For TimeSlots and seconds, it is a bit of overhead
+            #_ = DataTime_Point_or_Slot.validity_interval.duration_s()
+            return DataTime_Point_or_Slot     
 
     # Python 2.x
     def next(self):
@@ -149,8 +171,7 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
     #--------------------
 
     def check_structure_for_DataTimePoints(self, sensor, right_to_initialize=False):
-        '''Check that the structure of the storage exists for a given sensor'''
-        
+        '''Check that the structure of the storage exists for a given sensor'''     
         # Check if right table exists:
         cur = self.conn.cursor()    
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='{}_DataTimePoints';".format(sensor.__class__.__name__))
@@ -166,12 +187,12 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
             
     def initialize_structure_for_DataTimePoints(self, cur, sensor):
         # Create the table
-        cur.execute("CREATE TABLE {}_DataTimePoints(ts INTEGER NOT NULL, sid TEXT NOT NULL, flowrate_m3s REAL, PRIMARY KEY (ts, sid));".format(sensor.__class__.__name__))              
+        labels_list = ' REAL, '.join(sensor.Points_data_labels) + ' REAL, '
+        cur.execute("CREATE TABLE {}_DataTimePoints(ts INTEGER NOT NULL, sid TEXT NOT NULL, {} PRIMARY KEY (ts, sid));".format(sensor.__class__.__name__, labels_list))              
 
 
     def check_structure_for_DataTimeSlots(self, sensor, right_to_initialize=False):
         '''Check that the structure of the storage exists for a given sensor'''
-        logger.debug('Checking structure with right_to_initialize=%s', right_to_initialize)
         # Check if right table exists:
         cur = self.conn.cursor()    
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='{}_DataTimeSlots';".format(sensor.__class__.__name__))
@@ -186,6 +207,7 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
             return True
             
     def initialize_structure_for_DataTimeSlots(self, cur, sensor):
+        # Create the table
         labels_list = ' REAL, '.join(sensor.Slots_data_labels) + ' REAL, '
         cur.execute("CREATE TABLE {}_DataTimeSlots(start_ts INTEGER NOT NULL, end_ts INTEGER NOT NULL, sid TEXT NOT NULL, type TEXT NOT NULL, {} PRIMARY KEY (start_ts, end_ts, sid, type));".format(sensor.__class__.__name__, labels_list))              
 
@@ -203,7 +225,7 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
         if not sensor:
             raise NotImplementedError('Cannot yet store data without a sensor')
             
-            # The following is just a stub an experimental approach. 
+            # The following is just a stub for an experimental approach. 
             # To implement it we should prepare a table with TEXT fields with csv or similar... or maybe not?
             # in the end the get does not require a sensor type.. and here we create on the fly
             from luna.sensors import Sensor
@@ -248,8 +270,10 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
                         raise StorageException('{}: Sorry, the DataTimePoints structure for the sensor {} is not found and I am not allowed to create it (right_to_initialize is set to "{}")'.format(self.__class__.__name__, sensor, right_to_initialize))
                     storage_structure_checked = True
                 
-                logger.debug("Inserting point with t=%s, %s", item.t, item.data.values[0])
-                cur.execute("INSERT OR REPLACE INTO {}_DataTimePoints(ts, sid, flowrate_m3s) VALUES ({},'{}',{})".format(sensor.__class__.__name__, item.t, sensor.id,  item.data.values[0]))       
+                labels_list = ', '.join(sensor.Points_data_labels)
+                values_list = ', '.join([str(value) for value in item.data.values])
+                logger.debug("Inserting point with t=%s, lables=%s, values=%s", item.t, labels_list, values_list)
+                cur.execute("INSERT OR REPLACE INTO {}_DataTimePoints(ts, sid, {}) VALUES ({},'{}',{})".format(sensor.__class__.__name__, labels_list, item.t, sensor.id,  values_list))       
 
             elif isinstance(item, TimeSlot):
                 
@@ -259,9 +283,9 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
                         raise StorageException('{}: Sorry, the DataTimeSlots structure for the sensor {} is not found and I am not allowed to create it (right_to_initialize is set to "{}")'.format(self.__class__.__name__, sensor, right_to_initialize))
                     storage_structure_checked = True
                 
-                logger.debug("Inserting slot with start=%s, end=%s, %s", item.start, item.end, item.data.values[0])
                 labels_list = ', '.join(sensor.Slots_data_labels)
                 values_list = ', '.join([str(value) for value in item.data.values])
+                logger.debug("Inserting slot with start=%s, end=%s, lables=%s, values=%s", item.start, item.end, labels_list, values_list)
                 cur.execute("INSERT OR REPLACE INTO {}_DataTimeSlots(start_ts, end_ts, sid, type, {}) VALUES ({}, {},'{}','{}',{})".format(sensor.__class__.__name__, labels_list, item.start.t, item.end.t, sensor.id, item.type.name, values_list))       
                 
             else:
@@ -309,9 +333,13 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
 
         # Get column names
         labels = []
-        for i, item in enumerate(cur.execute('PRAGMA table_info({});'.format(sensor.__class__.__name__))):
+        for i, item in enumerate(cur.execute('PRAGMA table_info({}_DataTimePoints);'.format(sensor.__class__.__name__))):
             if i>1:
                 labels.append(item[1])
+        
+        # If the column names does not match the sensor data:
+        if labels != sensor.Points_data_labels:
+            raise ConsistencyException('Sensor labels and database labels does not match: {} - {}'.format(sensor.Points_data_labels, labels))
      
         # Use the iterator of SQLite (streming)
         if from_dt and to_dt:
@@ -325,7 +353,7 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
             query_cur = cur.execute('SELECT * from {}_DataTimePoints where sid="{}"'.format(sensor.__class__.__name__, sensor.id))
 
         # Create the DataStream
-        dataTimeStream = SQLiteDataTimeStream(query_cur=query_cur, sensor=sensor, type='Points', labels=labels)
+        dataTimeStream = SQLiteDataTimeStream(query_cur=query_cur, sensor=sensor, data_type=DataTimePoint, labels=labels)
 
         # Create a StreamingTimeSeries with the above DataStream
         stramingTimeSeries = StreamingTimeSeries(dataTimeStream=dataTimeStream, cached=cached)
@@ -348,7 +376,7 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
 
         # Get column names
         labels = []
-        for i, item in enumerate(cur.execute('PRAGMA table_info({});'.format(sensor.__class__.__name__))):
+        for i, item in enumerate(cur.execute('PRAGMA table_info({}_DataTimeSlots);'.format(sensor.__class__.__name__))):
             if i>1:
                 labels.append(item[1])
      
@@ -364,7 +392,7 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
             query_cur = cur.execute('SELECT * from {}_DataTimeSlots where sid="{}" and type="{}"'.format(sensor.__class__.__name__, sensor.id, timeSlotType.name))
 
         # Create the DataStream
-        dataTimeStream = SQLiteDataTimeStream(query_cur=query_cur, sensor=sensor, type='Slots', labels=labels)
+        dataTimeStream = SQLiteDataTimeStream(query_cur=query_cur, sensor=sensor, data_type=DataTimeSlot, labels=labels)
 
         # Create a StreamingTimeSeries with the above DataStream
         stramingTimeSeries = StreamingTimeSeries(dataTimeStream=dataTimeStream, cached=cached)

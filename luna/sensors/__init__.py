@@ -1,5 +1,5 @@
 from luna.datatypes.composite import DataTimePoint, DataTimeSlot
-from luna.datatypes.composite import PhysicalDataPoint, PhysicalDataSlot, DimensionalDataTimePoint, PhysicalDimensionalData, PhysicalDataTimeSlot
+from luna.datatypes.composite import PhysicalDataPoint, PhysicalDataSlot, DimensionalDataTimePoint, PhysicalData, PhysicalDataTimeSlot
 from luna.datatypes.composite import TimeSeries
 from luna.datatypes.composite import PhysicalDataTimePoint
 from luna.datatypes.dimensional import TimeSlot
@@ -80,6 +80,12 @@ class TimeBasedDimensionalDataSensor(TimeBasedSensor):
         
 
 
+
+#------------------------------------
+# We restart from here
+#------------------------------------
+
+
    
 class TimeBasedPhysicalDataSensor(TimeBasedSensor):
     '''This Sensor is menat to produce physical data. PhysicalData is a particular type of Dimensional Data where each dimensiona
@@ -87,24 +93,23 @@ class TimeBasedPhysicalDataSensor(TimeBasedSensor):
     bi-dimensional (one dimension is the flow, the second dimesnion is the temperature). The TimeBasedPhysicalDataSensor knows how to aggrgeate
     intensive and extensive metrics.'''
     
-    data_type   = PhysicalDataTimePoint
-    data_data_type = PhysicalDimensionalData
-    
-    data_slot_type = PhysicalDataTimeSlot
-    
     # TODO: handle intensive/extensive here?
-
+    Points_type = PhysicalDataTimePoint
+    Slots_type  = PhysicalDataTimeSlot
 
 class VolumetricSensorV1(TimeBasedPhysicalDataSensor):
 
     # Assign unique type_ID to thing type
     type_ID = 5
-    
+
     # Set (override) data_content_Points_labels
     Points_data_labels = ['flowrate_m3s'] #Mandatory
-    Points_validity_interval =  TimeInterval('60s') # Validty Slot type, or don't set it or set it to None if you implement it in the storage to have variable validity
+    Slots_data_labels  = ['flowrate_m3s_i_AVG', 'flowrate_m3s_i_MIN', 'flowrate_m3s_i_MAX', 'volume_m3_e_TOT'] # TODO: compute them automatically according to operations
     
-    Slots_data_labels  = ['flowrate_m3s_i_AVG', 'flowrate_m3s_i_MIN', 'flowrate_m3s_i_MAX', 'volume_m3_e_TOT']
+    # Validty interval
+    Points_validity_interval =  TimeInterval('60s') # Validty Slot type, or don't set it or set it to None if you implement it in the storage to have variable validity
+
+    
 
 
 

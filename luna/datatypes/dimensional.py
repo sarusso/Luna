@@ -332,12 +332,11 @@ class Region(Space):
                 return False    
         return super(Region, self).__eq__(other)
 
-    # Un-equality (inherits fromt the Base)
+    # Un-equality not necessary, inherits from the Base
     #def __ne__(self, other):
     #    return (not self.__eq__(other))
 
-    
-    
+ 
     def __init__(self, *args, **kwargs):
 
         # Region type (i.e. 2x4, or 4x8, or 15d, or 124s, or just 3 in case of a sphere)
@@ -661,7 +660,7 @@ class SpaceSlot(Point):
 
 
 #---------------------------------------------
-# Physical  quantities
+# Physical quantities
 #---------------------------------------------
 
 class PhysicalSpace():
@@ -672,13 +671,13 @@ class PhysicalSpace():
          PhysicalDataPoint != DataPhysicalPoint
          '''
     
-class PhysicalDimensionalData(Coordinates, Space):
+class PhysicalData(Coordinates, Space):
     '''Dimensional data where the labels must be:
          a) PhysicalQuantity objects, or
          b) valid string representations of physical quantities (according to PhysicalQuantity objects)'''
 
     def __init__(self, *argv, **kwargs):  
-        super(PhysicalDimensionalData, self).__init__(*argv, **kwargs)
+        super(PhysicalData, self).__init__(*argv, **kwargs)
         
         # NOTE! ! The following is just a check. A nicer approach could be to use  PhysicalQuantities as labels,
         # but they would be havier. On the other hand, storing string representatiosn means

@@ -12,80 +12,156 @@ from luna.datatypes.dimensional import *
 #
 #---------------------------------------------------
 
-# The following are Places in the n-dimensional space *plus* data referred to that place
+# Notation (naming) examples:
+#  - Point -> TimePoint  -> DataTimePoint  -> PhysicalDataTimePoint
+#  - Point -> SpacePoint -> DataSpacePoint -> PhysicalDataSpacePoint
+#  - Point -> TimePoint  -> DataTimePoint  -> SpaceDataTimePoint
+
+#---------------------------------------
+# Base
+#---------------------------------------
+
+# Ancestors
 class DataPoint(Point):
     '''A Point with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+
     def __init__(self, *argv, **kwargs):
         self.data   = kwargs.pop('data', None)
         super(DataPoint, self).__init__(*argv, **kwargs)
+
     def __repr__(self):
         return '{}, labels: {}, values: {}, first data label: {}, with value: {}'.format(self.__class__.__name__, self.labels, self.values, self.data.labels[0], self.data.values[0])
     # TODO: check this (and export the isintsnace check in the base classes). Also, call the super.__eq__ and then add these checks!
+
     def __eq__(self, other): 
         if not isinstance(self, other.__class__):
             return False
         return (self.values == other.values) and (self.labels == other.labels) and (self.data == other.data)       
 
+    @property
+    def data_type(self):
+        raise NotImplemented('{}: you cannot access the data_type attribute if you do not extend the basic DataPoint object specifying a type'.format(self.__class__.__name__))
+
+
 class DataSlot(Slot):
     '''A Slot with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+
     def __init__(self, *argv, **kwargs):
         self.data   = kwargs.pop('data', None)
         super(DataSlot, self).__init__(*argv, **kwargs)    
+
     def __repr__(self):
         return '{}, labels: {}, values: {}, data_labels: {}, data_values: {}'.format(self.__class__.__name__, self.labels, self.values, self.data.labels, self.data.values)
     # TODO: check this (and export the isintsnace check in the base classes). Also, call the super.__eq__ and then add these checks!
+
     def __eq__(self, other): 
         if not isinstance(self, other.__class__):
             return False
         return  (self.labels == other.labels) and (self.data == other.data)       
+
+    @property
+    def data_type(self):
+        raise NotImplemented('{}: you cannot access the data_type attribute if you do not extend the basic DataSlot object specifying a type'.format(self.__class__.__name__))
+
+
  
-
-
-# Now we go with the specializations
-
-
-class DimensionalDataPoint(DataPoint):
-    '''A Point with some dimensional data attached. '''
-    def __init__(self, *argv, **kwargs):
-        super(DimensionalDataPoint, self).__init__(*argv, **kwargs)
-        
-        #
-        # TODO: What the hell was the following one?!
-        # Plus: does it even make sense to ahve DimensionalData explicityly?
-        #
-        
-        # Convert data into dimensional data
-        #self.data = [DimensionalData(item) for item in self.values]
-        
-        #for item in self.data.values:
-        #    assert(isinstance(item,DimensionalData))  
-
+# Composite
 class DataTimePoint(TimePoint, DataPoint):
     '''A TimePoint with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
     def __repr__(self):
         return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
-
-class DimensionalDataTimePoint(TimePoint, DimensionalDataPoint):
-    '''A TimePoint with some dimensional data attached'''
-    def __repr__(self):
-        return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
- 
-
-class DataSpacePoint(DataPoint, SpacePoint):
-    '''A SpacePoint with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
-    pass
-
 
 class DataTimeSlot(TimeSlot, DataSlot):
     '''A TimeSlot with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
     pass
 
 
-class DataSpaceSlot(TimePoint, SpacePoint):
-    '''A SpaceSlot with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+#---------------------------------------
+# Specialization: "dimensional" data
+#---------------------------------------
+
+# Ancestors..
+class DimensionalDataPoint(DataPoint):  
+    '''A Point with some "dimensional" (another Point) data attached.'''
+    
+    data_type = Point
+    
+    def __init__(self, *argv, **kwargs):
+        if 'data' in kwargs and not isinstance(kwargs['data'], DimensionalDataPoint):
+            raise InputException('No Point found in data')
+        super(DimensionalDataPoint, self).__init__(*argv, **kwargs)
+
+class DimensionalDataSlot(DataSlot):
+    '''A Slot with some "dimensional" (a Point) data attached.'''
+              
+    data_type = Point
+    
+    def __init__(self, *argv, **kwargs):
+        if 'data' in kwargs and not isinstance(kwargs['data'], Point):
+            raise InputException('No Point found in data')
+        super(DimensionalDataSlot, self).__init__(*argv, **kwargs)        
+
+
+# Composite..
+class DimensionalDataTimePoint(TimePoint, DimensionalDataPoint):
+    '''A TimePoint with some "dimensional" data attached'''
+    def __repr__(self):
+        return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
+ 
+class DimensionalDataTimeSlot(TimeSlot, DimensionalDataSlot):
+    '''A TimeSlot with some "dimensional" data attached'''
+    def __repr__(self):
+        return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
+ 
+
+
+#---------------------------------------
+# Specialization: space handling
+#---------------------------------------
+
+# TODO: ...
+# class DataSpacePoint(DataPoint, SpacePoint):
+#     '''A SpacePoint with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+#     pass
+# 
+# class DataSpaceSlot(TimePoint, SpacePoint):
+#     '''A SpaceSlot with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+#     pass
+
+
+#---------------------------------------
+# Specialization: physical quantitites
+#---------------------------------------
+
+
+# Ancestors..
+class PhysicalDataPoint(DataPoint):   
+    '''A DataPoint where the data is PhysicalDimensionalData'''
+    
+    data_type = PhysicalData
+    
+    def __init__(self, *argv, **kwargs):
+        if 'data' in kwargs and not isinstance(kwargs['data'], PhysicalData):
+            raise InputException('No PhysicalData found in data')
+        super(PhysicalDataPoint, self).__init__(*argv, **kwargs)
+           
+class PhysicalDataSlot(DataSlot):
+    '''A DataPoint where the data is PhysicalDimensionalData'''
+    
+    data_type = PhysicalData
+    
+    def __init__(self, *argv, **kwargs):
+        if 'data' in kwargs and not isinstance(kwargs['data'], PhysicalData):
+            raise InputException('No PhysicalData found in data')
+        super(PhysicalDataSlot, self).__init__(*argv, **kwargs)
+
+
+# Composite..
+class PhysicalDataTimePoint(TimePoint, PhysicalDataPoint):
     pass
 
-
+class PhysicalDataTimeSlot(TimeSlot, PhysicalDataSlot):
+    pass
 
 
 
@@ -316,12 +392,17 @@ class TimeSeries(object):
         return filtered_timeSereies
 
 
+#class PhysicalDataTimeSeries(object):
+#    '''An ordered serie of PhysicalDataTimePoints or PhysicalDataTimeSlots'''
+#    # TODO: really implement this one..?
+#    pass
+
 
 #---------------------------------------------
 # StreamingTimeSeries
 #---------------------------------------------
 
-# Put in auxiliary
+# Put in auxiliary and improve (should extend DataStream)
 class DataTimeStream(object):
     ''' A data time stream is a stream of DataTimePoints or DataTimeSlots. it has to be implemented by the data source (storage)'''
     
@@ -360,11 +441,12 @@ class StreamingTimeSeries(TimeSeries):
     def __next__(self):
         if not self.iterator:
             self.iterator = self.dataTimeStream.__iter__()
-        next = self.iterator.next()
+
+        next = self.iterator.next() # Note: .next is not Python-compliant. It is fine as we implemented it, a
         if self.cached:
             self.__data.append(next)
         return next
-    
+
     # Python 2.x
     def next(self):
         return self.__next__()
@@ -398,47 +480,7 @@ class StreamingTimeSeries(TimeSeries):
     def force_load(self):
         self.__data = [item for item in self]
 
-#---------------------------------------------
-# Physical  quantities
-#---------------------------------------------
 
-class PhysicalDataPoint(DataPoint):
-    
-    '''A DataPoint where the data is PhysicalDimensionalData'''
-    
-    def __init__(self, *argv, **kwargs):
-        
-        # TODO: use assert?
-        if 'data' in kwargs and not isinstance(kwargs['data'], PhysicalDimensionalData):
-            raise Exception('No PhysicalDimensionalData found in data')
-
-        super(PhysicalDataPoint, self).__init__(*argv, **kwargs)
-           
-
-
-class PhysicalDataSlot(DataSlot):
-    '''A DataPoint where the data is PhysicalDimensionalData'''
-
-    def __init__(self, *argv, **kwargs):
-
-        # TODO: use assert?
-        if 'data' in kwargs and not isinstance(kwargs['data'], PhysicalDimensionalData):
-            raise Exception('No PhysicalDimensionalData found in data')
-        
-        super(PhysicalDataSlot, self).__init__(*argv, **kwargs)
-
-
-# Composite..
-class PhysicalDataTimePoint(TimePoint, PhysicalDataPoint):
-    pass
-
-class PhysicalDataTimeSlot(TimeSlot, PhysicalDataSlot):
-    pass
-
-class PhysicalDataTimeSeries(object):
-    '''An ordered serie of PhysicalDataTimePoints or PhysicalDataTimeSlots'''
-    # TODO: really implement this one..?
-    pass
 
 
 

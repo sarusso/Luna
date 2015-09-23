@@ -266,12 +266,12 @@ class test_dimensional(unittest.TestCase):
         pass
 
 
-    def test_PhysicalDimensionalData(self):
+    def test_PhysicalData(self):
         
-        _ = PhysicalDimensionalData(labels=['power_W'], values=[2.65])
+        _ = PhysicalData(labels=['power_W'], values=[2.65])
 
         with self.assertRaises(InputException):
-            _ = PhysicalDimensionalData(labels=['power_W_jhd'], values=[2.65])
+            _ = PhysicalData(labels=['power_W_jhd'], values=[2.65])
 
     def tearDown(self):
         pass
