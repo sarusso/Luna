@@ -4,12 +4,6 @@ from luna.common.exceptions import InputException
 from luna.spacetime.time import dt, TimeInterval, correct_dt_dst, timezonize
 import datetime
 
-# Assetr for timezone equality
-#def assertTzEquals(tz1,tz2):
-#    if not chronos.compare_timezones(tz1, tz2):
-#        raise AssertionError('Timezone differs ({0},{1})'.format(tz1,tz2))
-
-
 class test_time(unittest.TestCase):
 
     def setUp(self):       
