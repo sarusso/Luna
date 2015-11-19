@@ -31,6 +31,8 @@ basic Continuos Integration check. [Check status on Travis](https://travis-ci.or
 
 ## Quick Start
 
+```python
+
     #------------------------------------
     # Logging
     #------------------------------------
@@ -91,6 +93,7 @@ basic Continuos Integration check. [Check status on Travis](https://travis-ci.or
     # Aggregate data
     #------------------------------------
     # Coming soon ...
+```
 
 
 ## Documentation
