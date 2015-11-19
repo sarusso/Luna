@@ -47,7 +47,7 @@ basic Continuos Integration check. [Check status on Travis](https://travis-ci.or
     
     class TemperatureSensorV1(TimeBasedPhysicalDataSensor):
     
-        # Assign unique type_ID to thing type
+        # Assign unique type_ID to sensor type
         type_ID = 5
         
         # Set metrics
