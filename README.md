@@ -52,7 +52,9 @@ basic Continuos Integration check. [Check status on Travis](https://travis-ci.or
         
         # Set metrics
         Points_data_labels = ['temperature_C']
-        Slots_data_labels  = ['temperature_C_i_AVG', 'temperature_C_i_MIN', 'temperature_C_i_MAX']
+        Slots_data_labels  = ['temperature_C_i_AVG', 
+                              'temperature_C_i_MIN',
+                              'temperature_C_i_MAX']
     
     #------------------------------------
     # Generate data
@@ -64,7 +66,8 @@ basic Continuos Integration check. [Check status on Travis](https://travis-ci.or
     timeSeries = TimeSeries()
     for i in range(100):
         data = PhysicalData( labels = ['temperature_C'], values = [20.6+i] ) 
-        physicalDataTimePoint = PhysicalDataTimePoint(t = 1436022000 + (i*6), tz="Europe/Rome", data=data)
+        physicalDataTimePoint = PhysicalDataTimePoint(t = 1436022000 + (i*6),
+                                                      tz="Europe/Rome", data=data)
         timeSeries.append(physicalDataTimePoint)
     
     print 'Generated timeSeries:', timeSeries
@@ -73,7 +76,8 @@ basic Continuos Integration check. [Check status on Travis](https://travis-ci.or
     # Initializa a (temporary) storage
     #------------------------------------
     from luna.storage.sqlite import sqlite
-    timeSeriesSQLiteStorage = sqlite.TimeSeriesSQLiteStorage(in_memory=True, right_to_initialize=True)
+    timeSeriesSQLiteStorage = sqlite.TimeSeriesSQLiteStorage(in_memory=True,
+                                                             right_to_initialize=True)
     
     #------------------------------------
     # Store data
