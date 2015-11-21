@@ -5,8 +5,8 @@
 If you are interested in contributing please drop me a line at stefano.russo@gmail.com.
 
 
-# Luna
-
+Luna
+====
 
 Luna is an high-level, highly customisable data analytics framework. Its roots are based on the physics and math which governs the reality around us, ensuring a coherent handling of almost any kind of data. The result is an extremely flexible framework that can suit a huge variety of use cases.
 
@@ -23,13 +23,13 @@ A suite of precessing/aggregation operations and of common storages is provided 
 
 Luna is very very well designed from a scalability point of view: there are no bottlenecks, and all the data processing pipeline can be run in a streaming-fashion way (i.e. using Hadoop Streaming to process Terabytes of data). It anyway runs of the box on your Laptop using SQLite for storing data, and it can be integrated in bigger projects just by writing a custom storage module.
 
-## Testing ![](https://api.travis-ci.org/sarusso/Luna.svg) 
+# Testing ![](https://api.travis-ci.org/sarusso/Luna.svg) 
 
 Every commit on Luna codebase is tested with Travis-CI. This ensures a 
 basic Continuos Integration check. [Check status on Travis](https://travis-ci.org/sarusso/Luna/).
 
 
-## Quick Start
+# Quick Start
 
 ```python
 
@@ -100,15 +100,21 @@ basic Continuos Integration check. [Check status on Travis](https://travis-ci.or
 ```
 
 
-## Documentation
+# Documentation
 
 Coming soon...
 
 
-## Demos
+# Demos
 
 Coming soon...
 
+
+Licensing
+=========
+Docker is licensed under the Apache License, Version 2.0. See
+[LICENSE](https://raw.githubusercontent.com/sarusso/Luna/master/LICENSE) for the full
+license text.
 
 
 
