@@ -110,9 +110,8 @@ Coming soon...
 Coming soon...
 
 
-Licensing
-=========
-Docker is licensed under the Apache License, Version 2.0. See
+# Licensing
+Luna is licensed under the Apache License, Version 2.0. See
 [LICENSE](https://raw.githubusercontent.com/sarusso/Luna/master/LICENSE) for the full
 license text.
 
