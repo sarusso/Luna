@@ -1,8 +1,8 @@
 from luna.datatypes.dimensional import PhysicalData, TimePoint, TimeSlot
-from luna.datatypes.composite import TimeSeries, PhysicalDataTimePoint, PhysicalDataTimeSlot, DataTimePoint, DataPoint, DataTimeSlot
+from luna.datatypes.composite import DataTimeSeries, PhysicalDataTimePoint, PhysicalDataTimeSlot, DataTimePoint, DataPoint, DataTimeSlot
 from luna.storage import Storage
 from luna.spacetime.time import s_from_dt
-from luna.datatypes.composite import StreamingTimeSeries, DataTimeStream
+from luna.datatypes.composite import StreamingDataTimeSeries, DataTimeStream
 from luna.common.exceptions import InputException, ConsistencyException, StorageException
 import sqlite3
 import os
@@ -31,7 +31,7 @@ def trunc(invalue, digits):
 
 # TODO: naming?
 # SQLiteDataTimeStream -> SQLiteDataStream
-# TimeSeriesSQLiteStorage -> SQLiteStorage
+# DataTimeSeriesSQLiteStorage -> SQLiteStorage
 
 
 #-------------------------
@@ -163,7 +163,7 @@ class SQLiteStorage(Storage):
 # Time 
 #-------------------------
 
-class TimeSeriesSQLiteStorage(SQLiteStorage):
+class DataTimeSeriesSQLiteStorage(SQLiteStorage):
 
 
     #--------------------
@@ -215,10 +215,10 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
     #--------------------
     #  PUT
     #--------------------    
-    def put(self, timeSeries, sensor=None, trustme=False, right_to_initialize=False):
+    def put(self, DataTimeSeries, sensor=None, trustme=False, right_to_initialize=False):
   
         # If empty return immediately as we cannot make any consideration
-        if timeSeries.is_empty():
+        if DataTimeSeries.is_empty():
             return
 
         # If not sensor is given then abort for now
@@ -234,32 +234,32 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
                 data_type = DataTimePoint
                 data_data_type = DataPoint
                 Points_validity_interval = 0
-                Point_lables = timeSeries.data.labels 
-                Slot_lables  = timeSeries.data.labels 
+                Point_lables = DataTimeSeries.data.labels 
+                Slot_lables  = DataTimeSeries.data.labels 
             sensor =  NoSensor('cbqiy66')
 
         
-        # TODO: timeSeries[0] does not work anymore with the slots
-        # TODO: add TimeDataStream.reset() to start over (useful in timeSeries.data.type where only the forst element is checked)
+        # TODO: DataTimeSeries[0] does not work anymore with the slots
+        # TODO: add TimeDataStream.reset() to start over (useful in DataTimeSeries.data.type where only the forst element is checked)
          
         # Check for labels consistency
-        if isinstance(timeSeries.data.first, TimePoint):
-            if timeSeries.data.labels != sensor.Points_data_labels:
-                raise InputException('Inconsistent labels: sensor says "{}", but in the TimeSeries I found "{}"'.format(sensor.Points_data_labels, timeSeries.data.labels))
+        if isinstance(DataTimeSeries.data.first, TimePoint):
+            if DataTimeSeries.data.labels != sensor.Points_data_labels:
+                raise InputException('Inconsistent labels: sensor says "{}", but in the DataTimeSeries I found "{}"'.format(sensor.Points_data_labels, DataTimeSeries.data.labels))
   
-        elif isinstance(timeSeries.data.first, TimeSlot):
-            if timeSeries.data.labels != sensor.Slots_data_labels:
-                raise InputException('Inconsistent labels: sensor says "{}", but in the TimeSeries I found "{}"'.format(sensor.Slots_data_labels, timeSeries.data.labels))
+        elif isinstance(DataTimeSeries.data.first, TimeSlot):
+            if DataTimeSeries.data.labels != sensor.Slots_data_labels:
+                raise InputException('Inconsistent labels: sensor says "{}", but in the DataTimeSeries I found "{}"'.format(sensor.Slots_data_labels, DataTimeSeries.data.labels))
         
         else:
-            raise InputException('Sorry, I cannot store a TimeSeries with data of type "{}"'.format(timeSeries.data.first))
+            raise InputException('Sorry, I cannot store a DataTimeSeries with data of type "{}"'.format(DataTimeSeries.data.first))
 
         # For each put there might be different storgae structure 
         storage_structure_checked = False if not trustme else True
         
         # Initialize cursor:
         cur = self.conn.cursor()
-        for item in timeSeries:
+        for item in DataTimeSeries:
             
             # With which kind of data are we dealing with?
             if isinstance(item, TimePoint):
@@ -355,10 +355,10 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
         # Create the DataStream
         dataTimeStream = SQLiteDataTimeStream(query_cur=query_cur, sensor=sensor, data_type=DataTimePoint, labels=labels)
 
-        # Create a StreamingTimeSeries with the above DataStream
-        stramingTimeSeries = StreamingTimeSeries(dataTimeStream=dataTimeStream, cached=cached)
+        # Create a StreamingDataTimeSeries with the above DataStream
+        stramingDataTimeSeries = StreamingDataTimeSeries(dataTimeStream=dataTimeStream, cached=cached)
 
-        return stramingTimeSeries
+        return stramingDataTimeSeries
 
 
     #---------------------
@@ -394,10 +394,10 @@ class TimeSeriesSQLiteStorage(SQLiteStorage):
         # Create the DataStream
         dataTimeStream = SQLiteDataTimeStream(query_cur=query_cur, sensor=sensor, data_type=DataTimeSlot, labels=labels)
 
-        # Create a StreamingTimeSeries with the above DataStream
-        stramingTimeSeries = StreamingTimeSeries(dataTimeStream=dataTimeStream, cached=cached)
+        # Create a StreamingDataTimeSeries with the above DataStream
+        stramingDataTimeSeries = StreamingDataTimeSeries(dataTimeStream=dataTimeStream, cached=cached)
 
-        return stramingTimeSeries
+        return stramingDataTimeSeries
 
 
 

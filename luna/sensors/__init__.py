@@ -1,6 +1,5 @@
 from luna.datatypes.composite import DataTimePoint, DataTimeSlot
 from luna.datatypes.composite import PhysicalDataPoint, PhysicalDataSlot, DimensionalDataTimePoint, PhysicalData, PhysicalDataTimeSlot
-from luna.datatypes.composite import TimeSeries
 from luna.datatypes.composite import PhysicalDataTimePoint
 from luna.datatypes.dimensional import TimeSlot
 from luna.spacetime.time import TimeInterval

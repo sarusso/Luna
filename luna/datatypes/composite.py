@@ -167,12 +167,42 @@ class PhysicalDataTimeSlot(TimeSlot, PhysicalDataSlot):
 
 #---------------------------------------------------
 #
-#   Special composite type: the Time Series
+#   Data Sets, Series, Time Series etc.
 #
 #---------------------------------------------------
 
-class TimeSeries(object):
-    '''A time series is a sequence of data points. Therfore this is an ordered serie of DataTimePoints (or DataTimeSlots)'''
+
+class Set(object):
+    '''An unordered ensemble of Points or Regions (or Slots).'''
+    pass
+
+class DataSet(Set):
+    '''An unordered ensemble of DataPoints or DataRegions (or DataSlots).'''
+    pass
+
+class Series(Set):
+    '''An ordered ensemble (or sequence) of DataPoints or DataRegions (or DataSlots).'''
+    pass
+
+class DataSeries(Series):
+    '''An (ordered) sequence of DataPoints or DataRegions (or DataSlots). The order may vary and the logic is left to the user
+    (i.e. SurfaceDataPoints can be orderd by x or y depending on the implementation, exactly as a C matrix, while
+    TimeDataPoints are ordered by time)'''
+    pass
+
+class TimeSeriesNO(Series):
+    '''A Series of TimePoints or TimeSlots (not TimeRegions as time is 1D and only
+    regions with a "slotty" shape make sense). Please note that this TimeSeries does  not carry any data.
+    According to Wikipedia, a TimeSeries is "a sequence of data points", but in Luna's logic it is
+    just a sequence of (Time)Points. See DataTimeSeries for the common TimeSeries.'''
+    pass
+
+# TODO: should be DataTimeSeries(TimeSeries, DataSeries)?
+class DataTimeSeries(TimeSeriesNO):
+    '''An DataSeries of DataTimePoints or DataTimeSlots (not DataTimeRegions as we are in 1D and only
+    regions with a "slotty" shape make sense, so DataTimeSlots).. Definition from Wikipedia: 2a sequence of data points".
+    In our logic is therfore an ordered set of DataTimePoints or DataTimeSlots (not DataTimeRegions as we are in 1D and only
+    regions with a "slotty" shape make sense, so DataTimeSlots).'''
     
     def __repr__(self):
         if self._data:
@@ -376,7 +406,7 @@ class TimeSeries(object):
     def filter(self, from_dt, to_dt):
         
         # Initialize new TimeSeries to return as container
-        filtered_timeSereies = TimeSeries(tz=self.tz, index=self.index)
+        filtered_timeSereies = DataTimeSeries(tz=self.tz, index=self.index)
         
         logger.debug('Filtering time series from %s to %s', from_dt, to_dt)
         for item in self:
@@ -417,7 +447,7 @@ class DataTimeStream(object):
     def next(self):
         return self.__next__()
 
-class StreamingTimeSeries(TimeSeries):
+class StreamingDataTimeSeries(DataTimeSeries):
     '''In the streming Time Series, the iterator is rewritten to use a DataTimeStream. Not-streaming operatiosn
     (like accessing the index) are supported, but they triggers the compelte navigation of the DataTimeStream wich
     can be very large to be loaded in RAM, or just neverending in case of a real time stream'''
@@ -427,7 +457,7 @@ class StreamingTimeSeries(TimeSeries):
         self.iterator = None
         self.cached = kwargs.pop('cached', False)
         self.dataTimeStream = kwargs.pop('dataTimeStream')
-        super(StreamingTimeSeries, self).__init__(*args, **kwargs)
+        super(StreamingDataTimeSeries, self).__init__(*args, **kwargs)
 
     def __repr__(self):
         if self.__data:

@@ -32,71 +32,71 @@ basic Continuos Integration check. [Check status on Travis](https://travis-ci.or
 # Quick Start
 
 ```python
+#------------------------------------
+# Logging
+#------------------------------------
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("luna")
 
-    #------------------------------------
-    # Logging
-    #------------------------------------
-    import logging
-    logging.basicConfig(level=logging.INFO)
-    logger = logging.getLogger("luna")
-    
-    #------------------------------------
-    # Define a demo sensor
-    #------------------------------------
-    from luna.sensors import TimeBasedPhysicalDataSensor
-    
-    class TemperatureSensorV1(TimeBasedPhysicalDataSensor):
-    
-        # Assign unique type_ID to sensor type
-        type_ID = 5
-        
-        # Set metrics
-        Points_data_labels = ['temperature_C']
-        Slots_data_labels  = ['temperature_C_i_AVG', 
-                              'temperature_C_i_MIN',
-                              'temperature_C_i_MAX']
-    
-    #------------------------------------
-    # Generate data
-    #------------------------------------
-    from luna.datatypes.composite import TimeSeries, PhysicalDataTimePoint
-    from luna.datatypes.dimensional import PhysicalData
-    
-    # Generate 10 points TimeSeries with temperature sensor
-    timeSeries = TimeSeries()
-    for i in range(100):
-        data = PhysicalData( labels = ['temperature_C'], values = [20.6+i] ) 
-        physicalDataTimePoint = PhysicalDataTimePoint(t = 1436022000 + (i*6),
-                                                      tz="Europe/Rome", data=data)
-        timeSeries.append(physicalDataTimePoint)
-    
-    print 'Generated timeSeries:', timeSeries
-    
-    #------------------------------------
-    # Initializa a (temporary) storage
-    #------------------------------------
-    from luna.storage.sqlite import sqlite
-    timeSeriesSQLiteStorage = sqlite.TimeSeriesSQLiteStorage(in_memory=True,
-                                                             right_to_initialize=True)
-    
-    #------------------------------------
-    # Store data
-    #------------------------------------
-    timeSeriesSQLiteStorage.put(timeSeries, sensor=TemperatureSensorV1('sensor_id_1'))
-    print 'Stored timeSeries: ok'
-    
-    #------------------------------------
-    # Get (all) data
-    #------------------------------------
-    time_series_out =  timeSeriesSQLiteStorage.get(sensor=TemperatureSensorV1('sensor_id_1'))
-    print 'Loaded timeSeries:', time_series_out
-    time_series_out.force_load()
-    print 'Loaded timeSeries (load forced):', time_series_out
-    
-    #------------------------------------
-    # Aggregate data
-    #------------------------------------
-    # Coming soon ...
+#------------------------------------
+# Define a demo sensor
+#------------------------------------
+from luna.sensors import TimeBasedPhysicalDataSensor
+
+class TemperatureSensorV1(TimeBasedPhysicalDataSensor):
+
+    # Assign unique type_ID to sensor type
+    type_ID = 5
+
+    # Set metrics
+    Points_data_labels = ['temperature_C']
+    Slots_data_labels  = ['temperature_C_i_AVG', 
+                          'temperature_C_i_MIN',
+                          'temperature_C_i_MAX']
+
+#------------------------------------
+# Generate data
+#------------------------------------
+from luna.datatypes.composite import DataTimeSeries, PhysicalDataTimePoint
+from luna.datatypes.dimensional import PhysicalData
+
+# Generate 10 points TimeSeries with temperature sensor
+dataTimeSeries = DataTimeSeries()
+for i in range(100):
+    data = PhysicalData( labels = ['temperature_C'], values = [20.6+i] ) 
+    physicalDataTimePoint = PhysicalDataTimePoint(t = 1436022000 + (i*6),
+                                                  tz="Europe/Rome", data=data)
+    dataTimeSeries.append(physicalDataTimePoint)
+
+print 'Generated timeSeries:', dataTimeSeries
+
+#------------------------------------
+# Initializa a (temporary) storage
+#------------------------------------
+from luna.storage.sqlite import sqlite
+dataTimeSeriesSQLiteStorage = sqlite.DataTimeSeriesSQLiteStorage(in_memory=True,
+                                                         right_to_initialize=True)
+
+#------------------------------------
+# Store data
+#------------------------------------
+dataTimeSeriesSQLiteStorage.put(dataTimeSeries, sensor=TemperatureSensorV1('sensor_id_1'))
+print 'Stored timeSeries: ok'
+
+#------------------------------------
+# Get (all) data
+#------------------------------------
+time_series_out =  dataTimeSeriesSQLiteStorage.get(sensor=TemperatureSensorV1('sensor_id_1'))
+print 'Loaded timeSeries:', time_series_out
+time_series_out.force_load()
+print 'Loaded timeSeries (load forced):', time_series_out
+
+#------------------------------------
+# Aggregate data
+#------------------------------------
+# Coming soon ...
+
 ```
 
 
