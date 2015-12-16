@@ -1,5 +1,5 @@
 import unittest
-from luna.datatypes.composite import TimeSeries, DataTimePoint
+from luna.datatypes.composite import DataTimePoint
 from luna.common.exceptions import InputException
 from luna.spacetime.time import dt, TimeInterval, correct_dt_dst, timezonize
 import datetime
@@ -61,7 +61,10 @@ class test_time(unittest.TestCase):
 
         # Very past years (no DST)
         dateTime = dt(1856,12,1,16,46, tzinfo='Europe/Rome')
-        self.assertEqual(str(dateTime), '1856-12-01 16:46:00+00:50')
+        self.assertEqual(str(dateTime), '1856-12-01 16:46:00+01:00')
+
+        # NOTE: with pytz==2015.4 instead of the above use the following (which should also be more correct...)
+        #self.assertEqual(str(dateTime), '1856-12-01 16:46:00+00:50')
 
         dateTime = dt(1926,12,1,16,46, tzinfo='Europe/Rome')
         self.assertEqual(str(dateTime), '1926-12-01 16:46:00+01:00')
