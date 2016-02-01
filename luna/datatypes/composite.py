@@ -190,7 +190,7 @@ class DataSeries(Series):
     TimeDataPoints are ordered by time)'''
     pass
 
-class TimeSeriesNO(Series):
+class TimeSeries(Series):
     '''A Series of TimePoints or TimeSlots (not TimeRegions as time is 1D and only
     regions with a "slotty" shape make sense). Please note that this TimeSeries does  not carry any data.
     According to Wikipedia, a TimeSeries is "a sequence of data points", but in Luna's logic it is
@@ -198,7 +198,7 @@ class TimeSeriesNO(Series):
     pass
 
 # TODO: should be DataTimeSeries(TimeSeries, DataSeries)?
-class DataTimeSeries(TimeSeriesNO):
+class DataTimeSeries(TimeSeries):
     '''An DataSeries of DataTimePoints or DataTimeSlots (not DataTimeRegions as we are in 1D and only
     regions with a "slotty" shape make sense, so DataTimeSlots).. Definition from Wikipedia: 2a sequence of data points".
     In our logic is therfore an ordered set of DataTimePoints or DataTimeSlots (not DataTimeRegions as we are in 1D and only
@@ -429,7 +429,7 @@ class DataTimeSeries(TimeSeriesNO):
 
 
 #---------------------------------------------
-# StreamingTimeSeries
+# StreamingDataTimeSeries
 #---------------------------------------------
 
 # Put in auxiliary and improve (should extend DataStream)
@@ -448,8 +448,8 @@ class DataTimeStream(object):
         return self.__next__()
 
 class StreamingDataTimeSeries(DataTimeSeries):
-    '''In the streming Time Series, the iterator is rewritten to use a DataTimeStream. Not-streaming operatiosn
-    (like accessing the index) are supported, but they triggers the compelte navigation of the DataTimeStream wich
+    '''In the streaming DataTimeSeries, the iterator is rewritten to use a DataTimeStream. Not-streaming operations
+    (like accessing the index) are supported, but they triggers the complete navigation of the DataTimeStream wich
     can be very large to be loaded in RAM, or just neverending in case of a real time stream'''
     
     # Init to save the DataTimeStream   
