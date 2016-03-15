@@ -1,8 +1,8 @@
 import datetime
 import calendar
 from luna.common.exceptions import InputException, ConsistencyException
+from luna.datatypes.auxiliary import SlotSpan
 import pytz
-from luna.datatypes.auxiliary import Interval
 
 
 #--------------------------
@@ -69,6 +69,12 @@ def dt(*args, **kwargs):
 #    Timezone-related
 #--------------------------
 
+def get_tz_offset_s(time_dt):
+    '''Get the time zone offset in seconds'''
+    return s_from_dt(time_dt.replace(tzinfo=pytz.UTC)) - s_from_dt(time_dt)
+    
+    
+
 def check_dt_consistency(date_dt):
     '''Check that the timezone is consistent with the datetime (some conditions in Python lead to have summertime set in winter)'''
 
@@ -134,9 +140,6 @@ def dt_from_t(timestamp_s, tz=None):
 def dt_from_s(timestamp_s, tz=None):
     '''Create a datetime object from an epoch timestamp in seconds. If no timezone is given, UTC is assumed'''
 
-    if not timestamp_s:
-        raise InputException("timestamp not set")
-
     if not tz:
         tz = "UTC"
     try:
@@ -149,17 +152,22 @@ def dt_from_s(timestamp_s, tz=None):
     
     return timestamp_dt
 
-
+# TOOD: dt_to_s?
 def s_from_dt(dt):
     '''Returns seconds with floating point for milliseconds/microseconds.'''
-    
-    assert(isinstance(dt, datetime.datetime))
+    if not (isinstance(dt, datetime.datetime)):
+        raise InputException('s_from_dt function called without datetime argument, got type "{}" instead.'.format(dt.__class__.__name__))
     microseconds_part = (dt.microsecond/1000000.0) if dt.microsecond else 0
     return  ( calendar.timegm(dt.utctimetuple()) + microseconds_part)
 
 
-class TimeInterval(Interval):
-    ''' A time interval is much more complicated than a Inteval as we have also the logical intervals (months, for example)'''
+#----------------------------
+# Time Span
+#----------------------------
+
+class TimeSlotSpan(SlotSpan):
+    ''' A time span is a duration. It can be physical (hours, minutes..), logical (months, for example) or
+    defined from a start to an end'''
     
     LOGICAL  = 'Logical'
     PHYSICAL = 'Phyisical'
@@ -177,12 +185,22 @@ class TimeInterval(Interval):
                        'u': 'microseconds'
                       }
 
-    
-    
-    def __init__(self, string=None, years=0, weeks=0, months=0, days=0, hours=0, minutes=0, seconds=0, microseconds=0):
-
-        if string and (years or months or days or hours or minutes or seconds or microseconds):
+    def __init__(self, string=None, years=0, weeks=0, months=0, days=0, hours=0, minutes=0, seconds=0, microseconds=0, start=None, end=None):
+ 
+        # String OR explicit OR start/end
+        if string and (years or months or days or hours or minutes or seconds or microseconds) and ((start is not None) or (end is not None)):
             raise InputException('Choose between string init and explicit setting of years,months, days, hours etc.')
+
+        # Check that both start and end are set if one is set
+        if start and not end:
+            raise InputException('You provided the start but not the end')
+
+        if end and not start:
+            raise InputException('You provided the end but not the start')
+               
+        # Set the TimeSlotSpan in seconds
+        if start and end:
+            seconds = s_from_dt((end-start).dt)
 
         self.years        = years
         self.months       = months
@@ -218,7 +236,7 @@ class TimeInterval(Interval):
         
         if isinstance(other, self.__class__):
             
-            return TimeInterval( years        = self.years + other.years,
+            return TimeSlotSpan( years        = self.years + other.years,
                                  months       = self.months + other.months,
                                  weeks        = self.weeks + other.weeks,
                                  days         = self.days + other.days,
@@ -264,10 +282,10 @@ class TimeInterval(Interval):
 
     @property
     def type(self):
-        '''Returns the type of the TimeInterval.
+        '''Returns the type of the TimeSlotSpan.
          - Physical if hours, minutes, seconds, micorseconds
          - Logical if Years, Months, Days, Weeks
-        The difference? Years, Months, Days, Weeks have different lenghts depending ont he starting date.
+        The difference? Years, Months, Days, Weeks have different lengths depending on the starting date.
         '''
 
         if self.years or self.months or self.weeks or self.days:
@@ -279,28 +297,35 @@ class TimeInterval(Interval):
         
 
     def round_dt(self, time_dt, how = None):
-        '''Round a datetime according to this TimeInterval. Only simple time intervals are supported in this operation'''
+        '''Round a datetime according to this TimeSlotSpan. Only simple time intervals are supported in this operation'''
 
         if self.is_composite():
-            raise InputException('Sorry, only simple time intervals are supported byt he rebase operation')
+            raise InputException('Sorry, only simple time intervals are supported by the rebase operation')
 
         if not time_dt.tzinfo:
             raise InputException('Timezone of the datetime is required')    
         
         # Convert input time to seconds
         time_s = s_from_dt(time_dt)
+        tz_offset_s = get_tz_offset_s(time_dt)
         
         #-------------------------
         # Physical time 
         #-------------------------
         if self.type == self.PHYSICAL:
             
-            # Get TimeInterval duration in seconds
-            timeInterval_s = self.duration_s(time_dt)
+            # Get TimeSlotSpan duration in seconds
+            timeSpan_s = self.duration_s(time_dt)
 
-            # Apply modular math:
-            time_floor_s = time_s - (time_s % timeInterval_s)
-            time_ceil_s   = time_floor_s + timeInterval_s
+            # Apply modular math (including timezone time translation trick if required (multiple hours))
+            # TODO: check for correctness, the time shift should be always done...
+            
+            if self.hours > 1 or self.minutes > 60:
+                time_floor_s = ( (time_s - tz_offset_s) - ( (time_s - tz_offset_s) % timeSpan_s) ) + tz_offset_s
+            else:
+                time_floor_s = time_s - (time_s % timeSpan_s)
+                
+            time_ceil_s   = time_floor_s + timeSpan_s
             
             if how == 'floor':
                 time_rounded_s = time_floor_s
@@ -309,10 +334,16 @@ class TimeInterval(Interval):
                 time_rounded_s = time_ceil_s
             
             else:
-                raise NotImplementedError('Easy to implement but no time. Take vcare about pre-1970 times (negative sign)')
-                # The following does not work
-                #time_rounded_s = time_floor_s if ( time_s < ( time_s + abs(time_ceil_s - time_floor_s)/2) ) else time_ceil_s
-                
+
+                distance_from_time_floor_s = abs(time_s - time_floor_s) # Distance from floot
+                distance_from_time_ceil_s  = abs(time_s - time_ceil_s)  # Distance from ceil
+
+                if distance_from_time_floor_s < distance_from_time_ceil_s:
+                    time_rounded_s = time_floor_s
+                else:
+                    time_rounded_s = time_ceil_s
+
+
         #-------------------------
         # Logical time 
         #-------------------------
@@ -329,20 +360,19 @@ class TimeInterval(Interval):
 
 
     def floor_dt(self, time_dt):
-        '''Floor a datetime according to this TimeInterval. Only simple time intervals are supported in this operation'''       
+        '''Floor a datetime according to this TimeSlotSpan. Only simple time intervals are supported in this operation'''       
         return self.round_dt(time_dt, how='floor')
- 
-    
+     
     def ceil_dt(self, time_dt):
-        '''Ceil a datetime according to this TimeInterval. Only simple time intervals are supported in this operation'''        
+        '''Ceil a datetime according to this TimeSlotSpan. Only simple time intervals are supported in this operation'''        
         return self.round_dt(time_dt, how='ceil')
 
     def rebase_dt(self, time_dt):
-        '''Rebase a given datetime to this TimeInterval. Only simple time intervals are supported in this operation'''
+        '''Rebase a given datetime to this TimeSlotSpan. Only simple time intervals are supported in this operation'''
         return self.round_dt(time_dt, how='floor')
               
     def shift_dt(self, time_dt, times=0):
-        '''Shift a given datetime of n times of this TimeInterval. Only simple time intervals are supported in this operation'''
+        '''Shift a given datetime of n times of this TimeSlotSpan. Only simple time intervals are supported in this operation'''
         if self.is_composite():
             raise InputException('Sorry, only simple time intervals are supported byt he rebase operation')
  
@@ -354,10 +384,10 @@ class TimeInterval(Interval):
         #-------------------------
         if self.type == self.PHYSICAL:
             
-            # Get TimeInterval duration in seconds
-            timeInterval_s = self.duration_s(time_dt)
+            # Get TimeSlotSpan duration in seconds
+            timeSpan_s = self.duration_s(time_dt)
 
-            time_shifted_s = time_s + ( timeInterval_s * times )
+            time_shifted_s = time_s + ( timeSpan_s * times )
             time_shifted_dt = dt_from_s(time_shifted_s, tz=time_dt.tzinfo)
 
         #-------------------------
@@ -380,22 +410,22 @@ class TimeInterval(Interval):
             raise InputException('Sorry, only simple time intervals are supported by this operation')
 
         if self.type == 'Logical' and not time_dt:
-            raise InputException('With a logical TimeInterval you can ask for duration only if you provide the starting point')
+            raise InputException('With a logical TimeSlotSpan you can ask for duration only if you provide the starting point')
         
         if self.type == 'Logical':
             raise NotImplementedError()
 
         # Hours. Minutes, Seconds
         if self.hours:
-            timeInterval_s = self.hours * 60 * 60
+            timeSpan_s = self.hours * 60 * 60
         if self.minutes:
-            timeInterval_s = self.minutes * 60
+            timeSpan_s = self.minutes * 60
         if self.seconds:
-            timeInterval_s = self.seconds
+            timeSpan_s = self.seconds
         if self.microseconds:
-            timeInterval_s = 1/1000000.0 * self.microseconds
+            timeSpan_s = 1/1000000.0 * self.microseconds
                
-        return timeInterval_s
+        return timeSpan_s
         
     @property
     def duration(self):
@@ -403,8 +433,15 @@ class TimeInterval(Interval):
             raise InputException('Sorry, the duration of a logical time interval is not defined. use duration_s() providing the starting point.')
         return self.duration_s()
 
-
-
+    # Get start/end  
+    def get_end(self, start):
+        from luna.datatypes.dimensional import TimePoint
+        return TimePoint(t=self.shift_dt(start.dt, times=1))
+ 
+    # TODO: do we need rebase?!
+    #def rebase(self, point):
+    #    from luna.datatypes.dimensional import TimePoint
+    #    return TimePoint(t=self.timeInterval.floor_dt(point.dt))
 
 
 

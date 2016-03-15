@@ -41,7 +41,7 @@ def trunc(invalue, digits):
 class SQLiteDataTimeStream(DataTimeStream):
     ''' Data time stream implementation in SQLite'''
      
-    def __init__(self, query_cur, sensor, data_type, labels=None, truncate=None):
+    def __init__(self, cur, query, sensor, data_type, labels=None, truncate=None):
                
         # self.sensor.data_type      = PhysicalDataTimePoint
         # self.sensor.data_data_type = PhysicalDimensionalData
@@ -60,19 +60,27 @@ class SQLiteDataTimeStream(DataTimeStream):
         # Check valid type 
         if not ( issubclass(data_type, DataTimePoint)  or issubclass(data_type, DataTimeSlot) ):
             raise InputException('With this datastream type must be instance of DataTimePoint or DataTimeSlot')
-        
-        self.query_cur = query_cur
+
+        self.cur       = cur        
+        self.query     = query
+        self.query_cur = None
         self.data_type = data_type
-        self.truncate = truncate
-        self.labels = None
+        self.truncate  = truncate
+        self.labels    = None
+        self.source_acceses = 0
+        
+        # TODO: Call parent init, use kwargs, pop var names, etc.
+        #super(SQLiteDataTimeStream, self).__init__(*args, **kwargs)
         
         
     # Iterator
     def __iter__(self):
+        self.query_cur = self.cur.execute(self.query)
+        self.source_acceses += 1
         return self
 
     def __next__(self):
-            
+        
         # TODO: do we like a while True here?
         while True:
             
@@ -130,6 +138,9 @@ class SQLiteDataTimeStream(DataTimeStream):
     # Python 2.x
     def next(self):
         return self.__next__()
+    
+    def get_statistics(self):
+        return {'source_acceses': self.source_acceses}
 
 #-------------------------
 # Main storage class
@@ -286,7 +297,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
                 labels_list = ', '.join(sensor.Slots_data_labels)
                 values_list = ', '.join([str(value) for value in item.data.values])
                 logger.debug("Inserting slot with start=%s, end=%s, lables=%s, values=%s", item.start, item.end, labels_list, values_list)
-                cur.execute("INSERT OR REPLACE INTO {}_DataTimeSlots(start_ts, end_ts, sid, type, {}) VALUES ({}, {},'{}','{}',{})".format(sensor.__class__.__name__, labels_list, item.start.t, item.end.t, sensor.id, item.type.name, values_list))       
+                cur.execute("INSERT OR REPLACE INTO {}_DataTimeSlots(start_ts, end_ts, sid, type, {}) VALUES ({}, {},'{}','{}',{})".format(sensor.__class__.__name__, labels_list, item.start.t, item.end.t, sensor.id, item.span, values_list))       
                 
             else:
                 raise InputException('{}: Sorry, data type {} is not support by this storage'.format(self.__class__.__name__, type(item)))
@@ -300,28 +311,28 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
     #--------------------
     #  GET
     #--------------------      
-    def get(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotType=None, cached=False, trustme=False):
+    def get(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotSpan=None, cached=False, trustme=False):
         
         if not data_id and not sensor:
             raise InputException('Please give at least one of data_id and sensor')
         
         if data_id and not sensor:
             raise NotImplementedError('Cannot yet get data without a sensor')
-            #sensor =  NoSensor('cbqiy66')
+            #sensor =  NoSensor('cbqiy66') <- COuld be an approach?
         
         # Load data. from and to are UTC. left included, right excluded, as always.
         
         # Decide if to load Points or Slots 
-        if not timeSlotType:
-            return self._get_DataTimePoints(data_id=data_id, sensor=sensor, from_dt=from_dt, to_dt=to_dt, timeSlotType=timeSlotType, cached=cached, trustme=trustme)
+        if not timeSlotSpan:
+            return self._get_DataTimePoints(data_id=data_id, sensor=sensor, from_dt=from_dt, to_dt=to_dt, timeSlotSpan=timeSlotSpan, cached=cached, trustme=trustme)
         else:
-            return self._get_DataTimeSlots(data_id=data_id, sensor=sensor, from_dt=from_dt, to_dt=to_dt, timeSlotType=timeSlotType, cached=cached, trustme=trustme)
+            return self._get_DataTimeSlots(data_id=data_id, sensor=sensor, from_dt=from_dt, to_dt=to_dt, timeSlotSpan=timeSlotSpan, cached=cached, trustme=trustme)
             
 
     #---------------------
     # Get DataTimePoints
     #---------------------
-    def _get_DataTimePoints(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotType=None, cached=False, trustme=False):
+    def _get_DataTimePoints(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotSpan=None, cached=False, trustme=False):
 
         # Initialize cursor
         cur = self.conn.cursor()
@@ -345,15 +356,15 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
         if from_dt and to_dt:
             from_s = s_from_dt(from_dt)
             to_s   = s_from_dt(to_dt)
-            query_cur = cur.execute('SELECT * from {}_DataTimePoints where sid="{}" and ts >= {} and ts < {}'.format(sensor.__class__.__name__, sensor.id, from_s, to_s))
+            query  = 'SELECT * from {}_DataTimePoints where sid="{}" and ts >= {} and ts < {}'.format(sensor.__class__.__name__, sensor.id, from_s, to_s)
         elif (not from_dt and to_dt) or (from_dt and not to_dt):
             raise InputException('Sorry, please give both from_dt and to_dt or none.')
         else:
             # Select all data
-            query_cur = cur.execute('SELECT * from {}_DataTimePoints where sid="{}"'.format(sensor.__class__.__name__, sensor.id))
+            query = 'SELECT * from {}_DataTimePoints where sid="{}"'.format(sensor.__class__.__name__, sensor.id)
 
         # Create the DataStream
-        dataTimeStream = SQLiteDataTimeStream(query_cur=query_cur, sensor=sensor, data_type=DataTimePoint, labels=labels)
+        dataTimeStream = SQLiteDataTimeStream(cur=cur, query=query, sensor=sensor, data_type=DataTimePoint, labels=labels)
 
         # Create a StreamingDataTimeSeries with the above DataStream
         stramingDataTimeSeries = StreamingDataTimeSeries(dataTimeStream=dataTimeStream, cached=cached)
@@ -364,7 +375,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
     #---------------------
     # Get DataTimeSlots
     #---------------------
-    def _get_DataTimeSlots(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotType=None, cached=False, trustme=False):
+    def _get_DataTimeSlots(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotSpan=None, cached=False, trustme=False):
 
         # Initialize cursor
         cur = self.conn.cursor()
@@ -380,19 +391,19 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
             if i>1:
                 labels.append(item[1])
      
-        # Use the iterator of SQLite (streming)
+        # Use the iterator of SQLite (streaming)
         if from_dt and to_dt:
             from_s = s_from_dt(from_dt)
             to_s   = s_from_dt(to_dt)
-            query_cur = cur.execute('SELECT * from {}_DataTimeSlots where sid="{}" and type="{}" and start_ts >= {} and end_ts <= {}'.format(sensor.__class__.__name__, sensor.id, timeSlotType.name, from_s, to_s))
+            query  = 'SELECT * from {}_DataTimeSlots where sid="{}" and type="{}" and start_ts >= {} and end_ts <= {}'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan, from_s, to_s)
         elif (not from_dt and to_dt) or (from_dt and not to_dt):
             raise InputException('Sorry, please give both from_dt and to_dt or none.')
         else:
             # Select all data
-            query_cur = cur.execute('SELECT * from {}_DataTimeSlots where sid="{}" and type="{}"'.format(sensor.__class__.__name__, sensor.id, timeSlotType.name))
+            query = 'SELECT * from {}_DataTimeSlots where sid="{}" and type="{}"'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan)
 
         # Create the DataStream
-        dataTimeStream = SQLiteDataTimeStream(query_cur=query_cur, sensor=sensor, data_type=DataTimeSlot, labels=labels)
+        dataTimeStream = SQLiteDataTimeStream(cur=cur, query=query, sensor=sensor, data_type=DataTimeSlot, labels=labels)
 
         # Create a StreamingDataTimeSeries with the above DataStream
         stramingDataTimeSeries = StreamingDataTimeSeries(dataTimeStream=dataTimeStream, cached=cached)

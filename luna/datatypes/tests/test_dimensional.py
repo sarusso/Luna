@@ -2,7 +2,7 @@ import unittest
 from luna.datatypes.composite import DataTimePoint
 from luna.datatypes.dimensional import *
 from luna.common.exceptions import InputException
-from luna.spacetime.time import dt
+from luna.spacetime.time import dt, TimeSlotSpan
 
 class test_dimensional(unittest.TestCase):
 
@@ -69,10 +69,18 @@ class test_dimensional(unittest.TestCase):
         with self.assertRaises(ValueError):
             _ = point1.valuesdict.g
 
-        ### The following might just go away.. ###
+        # Test __getitem__
+        self.assertEqual(point1['a'], 1)
+        
+        with self.assertRaises(ValueError):
+            _ = point1['g']
 
-        # Test valuefor():
-        self.assertEqual(point1.valueforlabel('a'),1)    
+        # Test valueforlabel
+        self.assertEqual(point1.valueforlabel('a'),1)
+        with self.assertRaises(ValueError):
+            point1.valueforlabel('g')
+  
+        # TODO: Test Content object? 
 
         # Test content:
         point7 = Point(label_a=2,label_b=5,label_c=8)
@@ -80,6 +88,12 @@ class test_dimensional(unittest.TestCase):
         self.assertEqual(point7.content.b,5)
         self.assertEqual(point7.content.c,8)
 
+
+        # Test sum and subtraction:
+        point8 = Point(label_a=12,label_b=5,label_c=3)
+        point9 = Point(label_a=8,label_b=3,label_c=1)
+        
+        self.assertEquals((point8-point9).values,[4,2,2])
 
     def test_Slot(self):
 
@@ -95,6 +109,9 @@ class test_dimensional(unittest.TestCase):
         slot3 = Slot(start=start_Point1, end=end_Point2)
         slot4 = Slot(start=start_Point2, end=end_Point3)
         
+        # Test that the span has been correctly set:
+        # TODO: Maybe compare with another Span object here? like SlotSpan([4,5])?
+        self.assertEqual(slot1.span.value, [4,5])
 
         # Raise if not compatible start - end
         with self.assertRaises(InputException):       
@@ -151,7 +168,7 @@ class test_dimensional(unittest.TestCase):
             slot1.anchor_to(start_Point1)
         
         # Not anchored Slot
-        slot5 = Slot(type=SlotType('test'), labels=['a','b'])
+        slot5 = Slot(span=Span('test'), labels=['a','b'])
         self.assertEqual(slot5.anchor, None)
         self.assertEqual(slot5.orientation, None)
         self.assertEqual(slot5.start, None)
@@ -168,6 +185,7 @@ class test_dimensional(unittest.TestCase):
             _ = slot5.end
 
         # Deltas are not defined if end is not implemented
+        # TODO: deltas?! Wheer we need hem?!
         with self.assertRaises(NotImplementedError): # TODO: Actually
             _ = slot5.deltas
 
@@ -237,29 +255,29 @@ class test_dimensional(unittest.TestCase):
         start_timePoint = TimePoint(t=dt(2015,2,27,13,0,0, tzinfo='UTC'))
         end_timePoint = TimePoint(t=dt(2015,2,27,14,0,0, tzinfo='UTC'))
         
-        # Test basic behaviour with no type
+        # Test basic behaviour with no span
         timeSlot = TimeSlot(start=start_timePoint, end=end_timePoint)
         self.assertEqual(timeSlot.start, start_timePoint)
         self.assertEqual(timeSlot.end, end_timePoint)
  
-        # Test behaviour with start-end-type  
-        timeSlotType = TimeSlotType("1h")
-        _ = TimeSlot(start=start_timePoint, end=end_timePoint, type=timeSlotType)
+        # Test behaviour with start-end-span  
+        timeSlotSpan = TimeSlotSpan("1h")
+        _ = TimeSlot(start=start_timePoint, end=end_timePoint, span=timeSlotSpan)
         
-        # Test behaviour with inconsistent start-end-type  
-        timeSlotType = TimeSlotType("15m")        
+        # Test behaviour with inconsistent start-end-span  
+        timeSlotSpan = TimeSlotSpan("15m")        
         with self.assertRaises(InputException):
-            _ = TimeSlot(start=start_timePoint, end=end_timePoint, type=timeSlotType)
+            _ = TimeSlot(start=start_timePoint, end=end_timePoint, span=timeSlotSpan)
 
-        # Test behaviour with start-type, no end  
-        timeSlotType = TimeSlotType("1h")
-        timeSlot = TimeSlot(start=start_timePoint, type=timeSlotType)
+        # Test behaviour with start-span, no end  
+        timeSlotSpan = TimeSlotSpan("1h")
+        timeSlot = TimeSlot(start=start_timePoint, span=timeSlotSpan)
         self.assertEqual(timeSlot.end, end_timePoint)
 
 
         # Test 'floating' timeslot
-        timeSlotType = TimeSlotType("1h")
-        timeSlot = TimeSlot(type=timeSlotType)
+        timeSlotSpan = TimeSlotSpan("1h")
+        timeSlot = TimeSlot(span=timeSlotSpan)
 
 
     def test_SpaceSlot(self):
@@ -271,7 +289,7 @@ class test_dimensional(unittest.TestCase):
         _ = PhysicalData(labels=['power_W'], values=[2.65])
 
         with self.assertRaises(InputException):
-            _ = PhysicalData(labels=['power_W_jhd'], values=[2.65])
+            _ = PhysicalData(labels=['power_W_j_h_d'], values=[2.65])
 
     def tearDown(self):
         pass

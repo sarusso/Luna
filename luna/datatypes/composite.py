@@ -23,10 +23,24 @@ from luna.datatypes.dimensional import *
 
 # Ancestors
 class DataPoint(Point):
-    '''A Point with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+    '''A Point with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image).
+    The data point has also the concept of the validity interval attached, which is defined based on the data it carries with him.
+    You can use the two properties valid_from and valid_until to apply the validity interval transparently.'''
 
     def __init__(self, *argv, **kwargs):
+        
+        # Args for the Datapoint
         self.data   = kwargs.pop('data', None)
+        self.validity_interval = kwargs.pop('validity_interval', None)
+
+        # Trustme switch        
+        trustme = kwargs['trustme'] if 'trustme' in kwargs else False
+
+        # Consistency checks
+        if not trustme:     
+            if self.validity_interval and not isinstance(self.validity_interval, Interval):
+                raise InputException('Point validty interval must be a Interval, got {}'.format(type(self.validity_interval)))
+
         super(DataPoint, self).__init__(*argv, **kwargs)
 
     def __repr__(self):
@@ -38,21 +52,40 @@ class DataPoint(Point):
             return False
         return (self.values == other.values) and (self.labels == other.labels) and (self.data == other.data)       
 
+    # De-implment sum and subtraction as since now we carry data it just not make any sense
+    def __sub__(self, other, trustme=False):
+        raise NotImplemented('Subtracting two DataPoints does not make sense')
+    def __sum__(self, other, trustme=False):
+        raise NotImplemented('Subtracting two DataPoints does not make sense')
+
     @property
     def data_type(self):
         raise NotImplemented('{}: you cannot access the data_type attribute if you do not extend the basic DataPoint object specifying a type'.format(self.__class__.__name__))
 
+    @property
+    def valid_from(self):
+        '''Returns the start of the validity for the point'''
+        raise NotImplemented()
+
+    @property
+    def valid_until(self):
+        '''Returns the start of the validity for the point'''
+        raise NotImplemented()
+        
+        
 
 class DataSlot(Slot):
-    '''A Slot with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+    '''A Slot with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image).
+    The coverage is a metric to help you understand how much you can rely on the slot's data. Read the doc for more info on the coverage concept.'''
 
     def __init__(self, *argv, **kwargs):
-        self.data   = kwargs.pop('data', None)
+        self.data     = kwargs.pop('data', None)
+        self.coverage = kwargs.pop('coverage', None)
         super(DataSlot, self).__init__(*argv, **kwargs)    
 
     def __repr__(self):
         return '{}, labels: {}, values: {}, data_labels: {}, data_values: {}'.format(self.__class__.__name__, self.labels, self.values, self.data.labels, self.data.values)
-    # TODO: check this (and export the isintsnace check in the base classes). Also, call the super.__eq__ and then add these checks!
+    # TODO: check this (and export the isinstance check in the base classes). Also, call the super.__eq__ and then add these checks!
 
     def __eq__(self, other): 
         if not isinstance(self, other.__class__):
@@ -70,6 +103,23 @@ class DataTimePoint(TimePoint, DataPoint):
     '''A TimePoint with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
     def __repr__(self):
         return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
+
+    @property
+    def valid_from(self):
+        '''Returns the start of the validity for the point'''
+        if self.validity_interval:
+            return self.dt - self.validity_interval
+        else:
+            return self.dt
+
+    @property
+    def valid_until(self):
+        '''Returns the start of the validity for the point'''
+        if self.validity_interval:
+            return self.dt + self.validity_interval
+        else:
+            return self.dt
+
 
 class DataTimeSlot(TimeSlot, DataSlot):
     '''A TimeSlot with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
@@ -130,7 +180,7 @@ class DimensionalDataTimeSlot(TimeSlot, DimensionalDataSlot):
 
 
 #---------------------------------------
-# Specialization: physical quantitites
+# Specialization: physical quantities
 #---------------------------------------
 
 
@@ -203,8 +253,20 @@ class DataTimeSeries(TimeSeries):
     regions with a "slotty" shape make sense, so DataTimeSlots).. Definition from Wikipedia: 2a sequence of data points".
     In our logic is therfore an ordered set of DataTimePoints or DataTimeSlots (not DataTimeRegions as we are in 1D and only
     regions with a "slotty" shape make sense, so DataTimeSlots).'''
+
+    @property
+    def data_type(self):
+
+        if self.data.first:
+            if isinstance(self.data.first, TimeSlot):
+                return DataTimeSlot
+            else:    
+                return DataTimePoint
+        else:
+            return None
     
     def __repr__(self):
+        # TODO: use the data_type
         if self._data:
             if isinstance(self._data[0], TimeSlot):
                 return '{} of {} {} ({}), first TimeSlot start: {}, last TimeSLot start: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].type, self._data[0].start.dt, self._data[-1].start.dt, self.tz)                
@@ -225,13 +287,24 @@ class DataTimeSeries(TimeSeries):
         return len(self._data)
 
     def __init__(self, tz=None, index=False):
+        
+        # Initialize data container
         self._data = []
+        
+        # Initialize time zone
         self._tz= tz
+        
+        # Initialize index if required
         if index:
             self.index = {}
         else:
             self.index = None
-    
+            
+        # initialize filtering
+        self.filter_labels  = None
+        self.filter_from_dt = None
+        self.filter_to_dt   = None 
+   
     @property
     def tz(self):
         if self._data:
@@ -250,7 +323,7 @@ class DataTimeSeries(TimeSeries):
             
             # B) Check for TimePoint os TimeSLot and that the DATA attribute is present
             if not isinstance(timeData_Point_or_Slot, TimePoint) and not isinstance(timeData_Point_or_Slot, TimeSlot):
-                raise Exception("Data type not supported (got {})".format(type(timeData_Point_or_Slot)))
+                raise Exception("Got unsupported data type while appending to the DataTimeSeries (got {})".format(type(timeData_Point_or_Slot)))
             # Now try access data (Will automatically raise) TODO: improve
             _ = timeData_Point_or_Slot.data    
 
@@ -308,7 +381,12 @@ class DataTimeSeries(TimeSeries):
             raise StopIteration
         else:
             self.current += 1
-            return self._data[self.current]           
+            if self.filter_labels is None and self.filter_from_dt is None and self.filter_to_dt is None:  
+                return self._data[self.current]
+            else:
+                if self.filter_from_dt or self.filter_to_dt:
+                    raise NotImplementedError('Filtering on is not yet implemented')
+
 
     # Python 2.x
     def next(self):
@@ -403,7 +481,37 @@ class DataTimeSeries(TimeSeries):
     def is_empty(self):
         return (False if self._data else True)        
 
+
+
+    #----------------
+    # Filtering
+    #----------------
+
+    def filter_on(self, from_dt=None, to_dt=None, labels=None):
+        logger.info('Activating filtering for dataTimeSeries')
+        if labels:
+            self.filter_labels  = labels
+        if from_dt:
+            self.filter_from_dt = from_dt
+        if to_dt:
+            self.filter_to_dt   = to_dt
+        # Raise Exception. not yet implemented..
+        raise NotImplementedError('Filtering on is not yet implemented')
+
+    def filter_off(self):
+        logger.info('Activating filtering for dataTimeSeries')
+        self.labels  = None
+        self.filter_from_dt = None
+        self.filter_to_dt   = None
+        # Raise Exception. not yet implemented..
+        raise NotImplementedError('Filtering is not yet implemented')
+    
+    # TODO: name it cut/slice/subset?
     def filter(self, from_dt, to_dt):
+        
+        #--------------------------------------------
+        # TODO: disable if streaming? Cannot work..
+        #--------------------------------------------
         
         # Initialize new TimeSeries to return as container
         filtered_timeSereies = DataTimeSeries(tz=self.tz, index=self.index)
@@ -449,14 +557,16 @@ class DataTimeStream(object):
 
 class StreamingDataTimeSeries(DataTimeSeries):
     '''In the streaming DataTimeSeries, the iterator is rewritten to use a DataTimeStream. Not-streaming operations
-    (like accessing the index) are supported, but they triggers the complete navigation of the DataTimeStream wich
-    can be very large to be loaded in RAM, or just neverending in case of a real time stream'''
+    (like accessing the index) are supported, but they triggers the complete navigation of the DataTimeStream which
+    can be very large to be loaded in RAM, or just never ending in case of a real time stream'''
     
     # Init to save the DataTimeStream   
     def __init__(self, *args, **kwargs):
         self.iterator = None
-        self.cached = kwargs.pop('cached', False)
+        self.user_cached = kwargs.pop('cached', False) # TODO: naming: user_cached means that the user WANTS the ts to be cached
+        self.cached = False
         self.dataTimeStream = kwargs.pop('dataTimeStream')
+        self.gone_trought_iterator = False
         super(StreamingDataTimeSeries, self).__init__(*args, **kwargs)
 
     def __repr__(self):
@@ -466,18 +576,37 @@ class StreamingDataTimeSeries(DataTimeSeries):
             return '{}, start=NotImp, last seen=NotImp'.format(self.__class__.__name__)
 
     def __iter__(self):
+        # Check if the iterator is going to use the cache, so do not even initialize the iterator of the dataTimeStream
+        if not (self.cached and self.gone_trought_iterator):
+            self.iterator = self.dataTimeStream.__iter__()
+        else:
+            logger.debug('Loading from cache, not using dataTimeStream iterator')
+        # Set iteration staring position
+        self.iterator_pos = -1
         return self
 
     def __next__(self):
-        if not self.iterator:
-            self.iterator = self.dataTimeStream.__iter__()
 
-        next = self.iterator.next() # Note: .next is not Python-compliant. It is fine as we implemented it, a
-        if self.cached:
-            self.__data.append(next)
-        return next
+        # If the time series is cached and we already gone trough all the iterator, just return the cache
+        if self.cached and self.gone_trought_iterator:
+            self.iterator_pos += 1
+            try:
+                return self.__data[self.iterator_pos]
+            except IndexError:
+                raise StopIteration
+        
+        # Otherwise, load all content
+        else:
+            try:
+                next = self.iterator.next()
+                if self.cached:
+                    self.__data.append(next)
+            except StopIteration:
+                self.gone_trought_iterator = True
+                raise
+            return next
 
-    # Python 2.x
+    # Python 2.x back-compatibility
     def next(self):
         return self.__next__()
 
@@ -487,20 +616,20 @@ class StreamingDataTimeSeries(DataTimeSeries):
     @property
     def _data(self):
 
-        if self.iterator and not self.cached:
-            raise NotImplementedError('Sorry, you cannot access data of a not cached StreamingTimeSeries once you iterated over it. If you want to do so, use the argument "cached=True" (and kee an open eye on the RAM usage)')
+        if self.user_cached and not self.__data:
+            # We are fine to cache the data, so use force load
+            self.force_load()
         
-        if not self.iterator and not self.cached:
+        else:
+            # Here to be warned every time that the the user access the time series in a not streaming fashion
+            logger.warning('You are forcing a StreamingTimeSeries to work in a non-streaming way, I need to force-load it to perform this operation! Read the doc about force_load() for more info.')      
+            
             if not self.__data:
-                logger.warning('You are forcing a StreamingTimeSeries to work in a non-streaming way!')
-                # Create the data going trought all the iterator
-                self.__data = [item for item in self]
-                
-        if self.cached:
-            if not self.__data:
-                # Create the data going trought all the iterator
-                self.__data = [item for item in self]
-
+                # TODO: Decide where to raise the warning
+                # Here to be warned only the first time that the the user access the time series in a not streaming fashion
+                #logger.warning('You are forcing a StreamingTimeSeries to work in a non-streaming way, I need to force-load it to perform this operation! Read the doc about force_load() for more info.')      
+                self.force_load()
+  
         return self.__data
         
     @_data.setter
@@ -508,10 +637,12 @@ class StreamingDataTimeSeries(DataTimeSeries):
         self.__data=value
 
     def force_load(self):
+                
+        # Load content levereaging the internal iterator
         self.__data = [item for item in self]
 
-
-
+        # When you force- load a StreamingDataTimeSeries, caching is automatically enabled.
+        self.cached = True
 
 
 

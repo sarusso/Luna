@@ -13,7 +13,7 @@ Luna is an high-level, highly customisable data analytics framework. Its roots a
 
 Just to give an idea, one of the most basic data structures of Luna is the Space, a representation of a mathematical n-dimensional space; while one of the most evolved ones is the PhysicalDataTimeSeries, a time series specifically designed to hold physical quantities which is very useful for the sensors data in the Internet of Things world. 
 
-The core purpose of Luna is simple: take data out from a storage, process/aggregate it with some operations, put data in a storage.
+The core purpose of Luna is simple: process/aggregate data with some operations, with an extensive support for data storages.
 
 The precessing/aggregation operations are user-defined (thus Luna is a framework and not a library) and can span from a simple average to complex machine learning models. 
 

@@ -1,15 +1,12 @@
 
 from luna import PERFORMANCE_TIPS_ENABLED
-from luna.spacetime.time import timezonize, dt_from_t, s_from_dt
+from luna.spacetime.time import timezonize, dt_from_t, s_from_dt, TimeSlotSpan
+from luna.spacetime.space import SurfaceSpan, SpaceSpan
 from luna.common.exceptions import InputException, ConsistencyException
 from datetime import datetime
-from luna.datatypes.auxiliary import SlotType, TimeSlotType, SurfaceSlotType, SpaceSlotType
-from luna.datatypes.adimensional import PhysicalQuantity
-from luna.datatypes.auxiliary import Interval
+from luna.datatypes.auxiliary import PhysicalQuantity, Span, SlotSpan
 
-from luna.datatypes.auxiliary import RegionType
-from luna.datatypes.auxiliary import SlotType
-from luna.datatypes.auxiliary import TimeSlotType
+from luna.datatypes.auxiliary import RegionShape, SlotShape
 
 # Logger
 import logging
@@ -26,7 +23,8 @@ logger = logging.getLogger(__name__)
 #  Base class
 #--------------------------------
 
-# Base class to handle all dimensional (labels/values) object
+# Base class to handle all dimensional (labels/values) object.
+# Pleas enot that this is just a "support" class.
 class Base(object):
 
     def __init__(self, **kwargs):
@@ -72,7 +70,7 @@ class Base(object):
         
         return repr_str
 
-    # Euqality 
+    # Equality 
     def __eq__(self, other):
         if (self.has_labels and self.has_values):
             return ((self.labels == other.labels) and (self.values == other.values))
@@ -129,6 +127,14 @@ class Base(object):
         else:
             raise ConsistencyException('I have no values and no labels, my compatibility is not defined.')        
 
+    # Shortcut
+    @property
+    def classname(self):
+        return self.__class__.__name__
+
+    #-----------------------
+    # Content management
+    #-----------------------
 
     # Valuesdict
     @property 
@@ -150,7 +156,7 @@ class Base(object):
         return ValuesList(self._values).set_linked(self)
 
 
-    # Content
+    # Content object
     @property
     def content(self):
         if not self.has_labels or not self.has_values:
@@ -162,30 +168,41 @@ class Base(object):
             def __getattr__(self, attr):
                 return self.linked.values[self.linked.labels.index(attr)]
         
-        return Content(linked=self)   
+        return Content(linked=self)
+    
+    # Get item TODO: (Maybe not efficient? why was not implemented from the beginning?)
+    def __getitem__(self, label):
+        if not self.has_labels or not self.has_values:
+            raise AttributeError('Cannot access content since we do not have both labels and values')
+        try:
+            return self._values[self._labels.index(label)]
+        except ValueError:
+            raise ValueError('{} has no label named "{}"'.format(self.classname, label))
+        
 
-    # Utilites
+    # Values by label
     @property
     def valuesbylabel(self):
         if not self.has_labels or not self.has_values:
             raise AttributeError('Cannot access valuesbylabel since we do not have both labels and values')
-        
         return self.valuesdict
 
+
+    # Values for label
     def valueforlabel(self, label):
         if not self.has_labels or not self.has_values:
             raise AttributeError('Cannot access valueforlabel since we do not have both labels and values')
-        
-        return self._values[self._labels.index(label)]
+        try:
+            return self._values[self._labels.index(label)]
+        except ValueError:
+            raise ValueError('{} has no label named "{}"'.format(self.classname, label))
 
-    @property
-    def classname(self):
-        return self.__class__.__name__
+
 
 
 
 #--------------------------------
-#  Diemnsional objects
+#  Dimensional objects
 #--------------------------------
 
 class Space(Base):
@@ -290,7 +307,7 @@ class Coordinates(Base):
             # Check for int or float type of the values
             for i, item in enumerate(self._values):
                 if not (isinstance(item, int) or isinstance(item, float)):
-                    raise InputException('Wrong data of type "{}" with value "{}" in dimension with label "{}", only int and float types are valid values for DimensionalData'.format(type(item), item, self._labels[i]))
+                    raise InputException('Wrong data of type "{}" with value "{}" in dimension with label "{}", only int and float types are valid values for DimensionalData'.format(item.__class__.__name__, item, self._labels[i]))
 
     # Values property
     @property
@@ -301,30 +318,35 @@ class Coordinates(Base):
 class Point(Coordinates, Space):
     '''A point in a n-dimensional space with some coordinates'''
     
-    def __init__(self, *args, **kwargs):
-        
-        # Validity slot of the point
-        self.validity_interval = kwargs.pop('validity_interval', None)
-        
-        # Trustme switch        
-        trustme = kwargs['trustme'] if 'trustme' in kwargs else False
-
-        # Consistency checks
-        if not trustme:     
-            if self.validity_interval and not isinstance(self.validity_interval, Interval):
-                raise InputException('Point validty interval must be a Interval, got {}'.format(type(self.validity_interval)))
-
-        super(Point, self).__init__(*args, **kwargs)
+    # Sum and subtraction are defined in the classic, vectorial way.
+    
+    def __sum__(self, other, trustme=False):
+        # Check compatibility
+        if not trustme:
+            self.is_compatible_with(other, raises=True) 
+        new_values = []
+        for i in range(len(self.values)):
+            new_values.append(self.values[i] + other.values[i]) 
+        return self.__class__(labels=self.labels, values=new_values)
+    
+    def __sub__(self, other, trustme=False):
+        # Check compatibility
+        if not trustme:
+            self.is_compatible_with(other, raises=True) 
+        new_values = []
+        for i in range(len(self.values)):
+            new_values.append(self.values[i] - other.values[i]) 
+        return self.__class__(labels=self.labels, values=new_values)        
 
 
 class Region(Space):
-    '''A Region in a n-dimensional space. It can be both floating or anchored. Type is mandatory.'''
+    '''A Region in a n-dimensional space. It can be both floating or anchored. Shape and Span are mandatory. Anchor is optional'''
 
     # Equality to take into account the type and if the Region is anchored or not
     def __eq__(self, other):
-        # Check equality on type
-        if self.type or other.type:
-            if self.type != other.type:
+        # Check equality on span
+        if self.span or other.span:
+            if self.span != other.span:
                 return False    
         # Check equality on anchor 
         if self.anchor or other.anchor:
@@ -339,8 +361,11 @@ class Region(Space):
  
     def __init__(self, *args, **kwargs):
 
-        # Region type (i.e. 2x4, or 4x8, or 15d, or 124s, or just 3 in case of a sphere)
-        self.type  = kwargs.pop('type', None)
+        # Region shape (to be defined using the Shape objects)
+        self.shape  = kwargs.pop('shape', None)
+
+        # Region span (i.e. 2x4, or 4x8, or 15d, or 124s, or just 3 in case of a sphere)        
+        self.span  = kwargs.pop('span', None)
 
         # Trustme switch        
         trustme = kwargs['trustme'] if 'trustme' in kwargs else False
@@ -348,14 +373,28 @@ class Region(Space):
         # Consistency checks
         if not trustme:     
 
-            # TODO: Support regions without a type?
-            if not self.type:
-                raise InputException('{}: The "type" attribute is required.'.format(self.classname))
+            # Check shape is set
+            if not self.shape:
+                raise InputException('{}: The "shape" attribute is required.'.format(self.classname))
             else:
-                assert isinstance(self.type, RegionType), "Region type not of RegionType instance"
+                assert issubclass(self.shape, RegionShape), "Region shape not of RegionShape instance"
+
+            # Check span is set
+            if not self.span:
+                raise InputException('{}: The "span" attribute is required.'.format(self.classname))
+            else:
+                assert isinstance(self.span, Span), "Region shape not of RegionShape instance"
+
+
+            # Check consistency of the span with the shape
+            # TODO..
                 
+            # Check labels or anchor
+            # TODO: !!!
+            # TODO: Do non permit unanchored regions?!
+            # TODO: !!!
             if not 'anchor' in kwargs and not 'labels' in kwargs:
-                raise InputException('You need to privide me an anchor or the labels of the space where I will live in')
+                raise InputException('You need to provide me an anchor or the labels of the space where I will live in')
 
         # Anchor & orientation
         self.anchor_to(kwargs.pop('anchor', None), kwargs.pop('orientation', None), trustme=trustme)
@@ -389,32 +428,42 @@ class Region(Space):
                 if self.anchor.labels != self.labels:
                     raise InputException('{} my anchor labels ({}) are different than my already set labels ({})'.format(self.classname, self.anchor.labels, self.labels))
                 
-            self.type.validate_anchor(self.anchor)               # Not sure, anchor lives int he same space in which the region lives so validation shoudl be automatic
-            self.type.validate_orientation(self.orientation)     # Actually, the question is: Does this type know how to anchor to this anchor? i.a. A TimeSLotType cannot anchor ina  3d space.
+            # TODO: self.type.validate_anchor(self.anchor)               # Not sure, anchor lives int he same space in which the region lives so validation shoudl be automatic
+            # TODO: self.type.validate_orientation(self.orientation)     # Actually, the question is: Does this type know how to anchor to this anchor? i.a. A TimeSLotType cannot anchor ina  3d space.
             
 
             
 
 class Slot(Region):
-    '''A slot in a n-dimensional space, with a start and an end. It is a region wth a hyperectangular shape.
-    - Start and end must be Points referred to the space where the slot lives in.
-    - The slot is always left included, right excluded. kwargs: start, end, type, args are the same in the same order.
-    - The type of a slot is not mandartory in case you set the end, but it will be anyway created as there cannot be a slot without a type'''
+    '''A Slot is a particular type of region, which has an hyper-rectangular shape.
+    It is basically an interval (https://en.wikipedia.org/wiki/Interval_(mathematics)#Multi-dimensional_intervals)
+    In addition to the Span (which in this case is a SlotSpan) also start and end are required, and they must be
+    Points referred to the space where the slot lives in. You can omit one of the triplet start-end-span and it will
+    be automatically computed.
     
-    default_SlotType = SlotType
-    default_SlotType_unit = ''
+    Please not that the slot is always intended to be with left included, right excluded.'''
+    
+    default_Span = SlotSpan
+    default_Span_unit = ''
 
     def __init__(self, *args, **kwargs):
+
+
+        # We are a slot, set this shape
 
         # Trustme switch        
         trustme = kwargs['trustme'] if 'trustme' in kwargs else False
 
         if not trustme:
             # Quick sanity checks. We allow a slot without a start, as it is basically a floating region.
-            # We also allow to set at build time start and end and let type be derived accordingly.
-            if 'type' not in kwargs:
+            # We also allow to set at build time start and end and let span be derived accordingly.
+            if 'span' not in kwargs:
                 if ('start' not in kwargs) or ('end' not in kwargs):
                     raise InputException('{}: type not set and not start-end given.'.format(self.classname))
+
+        # !!!!!!!!!!!!!!!!!!
+        # TODO: Rewrite everything, to be symmetric in start-end-span triplet. Also check anchor.
+        # !!!!!!!!!!!!!!!!!!
 
 
         # If start is set it becomes the anchor of the slot region
@@ -433,30 +482,37 @@ class Slot(Region):
         if not trustme and start and end:
             start.is_compatible_with(end, raises=True)                
         
-        # If we have no type, we set it anyway by using start and end. Note: ath this stage we have only the self.end and the start, not the self.end.
-        if start and end and 'type' not in kwargs:
-            type_derived = True
-            if len(start.values) == 1:
-                kwargs['type'] = self.default_SlotType( str((end.values[0] - start.values[0])) + self.default_SlotType_unit)
-            else:
-                kwargs['type'] = self.default_SlotType( str(start.values) + ' - ' + str(end.values) + self.default_SlotType_unit)
+        # If we have no span, we set it anyway by using "start" and "end".
+        # "start" and "end" are indeed Points for which the subtraction is defined,
+        # and for which the string representation is also defined.
+        # Note: at this point we have only the self.end and the start, not the self.end.
+        if start and end and 'span' not in kwargs:
+            span_derived = True
+#             if len(start.values) == 1:
+#                 kwargs['span'] = self.default_Span( str((end.values[0] - start.values[0])) + self.default_Span_unit)
+#             else:
+#                 kwargs['span'] = self.default_Span( str(start.values) + ' - ' + str(end.values) + self.default_Span_unit)
+            kwargs['span'] = self.default_Span(start=start, end=end)
         else:
-            type_derived = False        
+            span_derived = False        
 
-        # Call DimensionalData constructor
+        # Set shape
+        kwargs['shape'] = SlotShape
+
+        # Call Father constructor
         super(Slot, self).__init__(*args, **kwargs)
         
         # Consistency checks
         if not trustme: 
              
-            # If both end and type are set, check consistency
-            if end and not type_derived:
-                obtained_end = kwargs['type'].get_end(start=start)
+            # If both end and span are set, check consistency
+            if end and not span_derived:
+                obtained_end = kwargs['span'].get_end(start=start)
                 if self._end and (self._end != obtained_end):
-                    raise InputException("Error: inconsistent start-end-type ({}, {}, {}), expected end based on type is {}".format(start, self._end, kwargs['type'], kwargs['type'].get_end(start=start)))
+                    raise InputException("Slot: Error: inconsistent start/end with span (start={}, end={}, span={}), expected end based on span should be {}".format(start, self._end, kwargs['span'], kwargs['span'].get_end(start=start)))
                          
             # Check that start is before end
-            if type_derived:
+            if span_derived:
                 for i in range(len(self.start.values)):
                     if not self.start.values[i] < self.end.values[i]:
                         raise InputException('{}: Start equal or after end on dimension #{}'.format(self.classname,i))
@@ -472,7 +528,7 @@ class Slot(Region):
             return self._end
         else:
             # Cache it...
-            self._end = self.type.get_end(start=self.start)
+            self._end = self.span.get_end(start=self.start)
             return self._end
 
     # The anchor is the start
@@ -523,13 +579,13 @@ class TimePoint(Point):
             pass
 
         if ('values' not in kwargs) or (not kwargs['values']):
-            raise InputException('Got no values at all. My kwargs: {}'.format(kwargs))
+            raise InputException('TimePoint: Got no values at all. My kwargs: {}'.format(kwargs))
 
-        # Convert datetime to seconds in case:
+        # Convert datetime to seconds in case (TODO# not clean approach at all!! maybe use 'dt' label? Mybe ysut drop support?):
         t = kwargs['values'][0]
         if isinstance(t, datetime):
             if PERFORMANCE_TIPS_ENABLED:
-                logger.info("You are initializing a TimePoint with a DateTime, this is not performant, use int/float epoch")       
+                logger.info("TimePoint: You are initializing a TimePoint with a DateTime, this is not performant, use int/float epoch")       
 
             # Get timezone from the DatetTime if any, and if not already set explicitly with tz arg, use it as reference tz
             if t.tzinfo:
@@ -596,13 +652,14 @@ class SpacePoint(Point):
 
 
 class TimeSlot(Slot):
-    '''A slot in a 1-dimensional space, the time.
-    If the type is set, the start and end has to be rounded to the time artithmetic since epoch, i.e. with a 1 hour TimeSlotType start and end must start at 0 minutes and 0 seconds.
-    If the type is set, the end can be automatically computed.
+    '''A slot in a 1-dimensional space, the time. it uses the TimeInterval object from the spacetime package.
+    If the type is set, the start and end has to be rounded to the time artithmetic since epoch, i.e. with
+    a 1 hour TimeSlotType start and end must start at 0 minutes and 0 seconds. If the type is set, the end 
+    can be automatically computed.
     '''
  
-    default_SlotType = TimeSlotType
-    default_SlotType_unit = 's'
+    default_Span = TimeSlotSpan
+    default_Span_unit = 's'
         
     # Ensure start,end = TimePoint()
     def __init__(self, *args, **kwargs):
@@ -617,10 +674,10 @@ class TimeSlot(Slot):
         # Checks
         if self.start: assert(isinstance(self.start, TimePoint))
         if self.end: assert(isinstance(self.end, TimePoint))
-        if self.type: assert(isinstance(self.type, TimeSlotType))
+        if self.span: assert(isinstance(self.span, TimeSlotSpan))
         
     def __repr__(self):
-        return '{}: from {} to {} with {}'.format(self.classname, self.start.dt, self.end.dt, self.type)
+        return '{}: from {} to {} with {}'.format(self.classname, self.start.dt, self.end.dt, self.span)
  
     @property
     def tz(self):
@@ -639,7 +696,7 @@ class SurfaceSlot(Point):
         # Checks
         assert(isinstance(self.start, SurfacePoint))
         if self._end: assert(isinstance(self.end, SurfacePoint))
-        if self.type: assert(isinstance(self.type, SurfaceSlotType))
+        if self.span: assert(isinstance(self.span, SurfaceSpan))
 
 class SpaceSlot(Point):
     '''A slot  in a 3-dimensional space, the space.'''
@@ -652,7 +709,7 @@ class SpaceSlot(Point):
         # Checks
         assert(isinstance(self.start, SpacePoint))
         if self._end: assert(isinstance(self.end, SpacePoint))
-        if self.type: assert(isinstance(self.type, SpaceSlotType))
+        if self.span: assert(isinstance(self.span, SpaceSpan))
 
 
 
@@ -663,15 +720,17 @@ class SpaceSlot(Point):
 # Physical quantities
 #---------------------------------------------
 
-class PhysicalSpace():
+class PhysicalSpace(Space):
     '''A space where phisical data lives in. Labels must be:
          a) PhysicalQuantity objects, or
          b) valid string representations of physical quantities (according to PhysicalQuantity objects)
          
          PhysicalDataPoint != DataPhysicalPoint
          '''
-    
-class PhysicalData(Coordinates, Space):
+    #def __init__(self, *argv, **kwargs):  
+    #    super(PhysicalSpace, self).__init__(*argv, **kwargs)
+
+class PhysicalData(Coordinates, PhysicalSpace):
     '''Dimensional data where the labels must be:
          a) PhysicalQuantity objects, or
          b) valid string representations of physical quantities (according to PhysicalQuantity objects)'''

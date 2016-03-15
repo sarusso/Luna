@@ -1,8 +1,8 @@
 import unittest
 from luna.datatypes.composite import DataTimeSeries, DataTimePoint, DataTimeSlot, TimePoint
 from luna.datatypes.dimensional import Point
-from luna.datatypes.auxiliary import TimeSlotType
 from luna.common.exceptions import InputException
+from luna.spacetime.time import TimeSlotSpan
 
 class test_dataTimePoint_DataTimeSeries(unittest.TestCase):
 
@@ -68,7 +68,7 @@ class test_dataTimePoint_DataTimeSeries(unittest.TestCase):
 
 
 
-
+# TODO: rename timeDataSlo in dataTimeSlot!!
 class test_timeDataSlot_DataTimeSeries(unittest.TestCase):
 
     def test_one(self):
@@ -92,7 +92,7 @@ class test_timeDataSlot_DataTimeSeries(unittest.TestCase):
             timeDataSlot = DataTimeSlot(start = TimePoint(t = 1000000020 + (i*60), tz="Europe/Rome"),
                                         end   = TimePoint(t = 1000000020 + (i+1)*60, tz="Europe/Rome"),
                                         data  = data,
-                                        type  = TimeSlotType("1m"))
+                                        span  = TimeSlotSpan("1m"))
             dataTimeSeries.append(timeDataSlot)
             
         self.assertEqual(dataTimeSeries.tz, "Europe/Rome")
