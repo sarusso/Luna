@@ -1,7 +1,7 @@
 from luna.common.exceptions import InputException
 
 #----------------------------------------
-#    Region Shapes / Spans
+#    Region Spans
 #----------------------------------------
 
 class Span(object):
@@ -17,58 +17,120 @@ class Span(object):
     # TODO: In mathematical terms, is a primitive and very wide concept of a "distance". Sure? no,
     # because the distance is a single number while the span can have a number for each dimension.
     
-    def __init__(self, name):
-        self.name = name
-    
+    def __init__(self, *args, **kwargs):
+        
+        trustme = kwargs.pop('trustme', False)
+        
+        # Set value
+        self.value = kwargs.pop('value', None)
+        
+        if self.value is None:
+            raise InputException('{}: a value is mandatory'.format(self.__class__.__name__))
+ 
+        # Do we have args or kwargs left?
+        if args:
+            raise InputException('{}: some args are left: {}'.format(self.__class__.__name__, args))
+        if kwargs:
+            raise InputException('{}: some kwargs are left: {}'.format(self.__class__.__name__, kwargs))       
+        
+    # Representation
     def __repr__(self):
-        return self.name
+        return '{} of value: {}'.format(self.__class__.__name__, self.value)
     
-    @property
-    def value(self):
-        try:
-            return self._value
-        except AttributeError:
-            raise NotImplementedError('You cannot use a Span without implementing it (self._value not found)')
+#     @property
+#     def value(self):
+#         try:
+#             return self.value
+#         except AttributeError:
+#             raise NotImplementedError('{}: You cannot use a Span without implementing it (self.value not found)'.format(self.__class__.__name__))
 
     # Get start/end
     def get_start(self, end):
-        raise NotImplementedError('You cannot use a Span without implementing it (get_start() not found)')
+        raise NotImplementedError('You cannot use all Span functions without fully implementing it (get_start() not found)')
     
     def get_end(self, start):
-        raise NotImplementedError('You cannot use a Span without implementing it (get_start() not found)')
+        raise NotImplementedError('You cannot use all Span functions without fully implementing it (get_end() not found)')
     
     # Equality 
     def __eq__(self, other):
-        return (self._value == other._value)
+        return (self.value == other.value)
 
     # Un-equality
     def __ne__(self, other):
         return (not self.__eq__(other))
 
+    # Symmetry
+    @property
+    def is_symmetric(self):  
+        raise NotImplementedError('{}: You cannot use all Span functions without fully implementing it (self.is_symmetric property not found)'.format(self.__class__.__name__))
+
+
+
 class SlotSpan(Span):
-    '''A Slot Span is basically a unit for defining the "length" of an hyper-rectangle: the Slot(or interval).
+    '''A Slot Span is basically a unit for defining the "length" of an hyper-rectangle: the Slot (or interval).
     In practice, this class of objects allows to measure the "length" of a segment, an area, a volume (depending
-    on the space in which it lives in). The Slot (interval) has a start and an end, which are the vertex Points of 
-    minimum and maxiumim, therefore the natural definition of the span for the slot is the distance, on each
-    dimension, of the end from the start.'''
+    on the space in which it lives in). Since the Slot (interval) has a start and an end, which are the vertex
+    Points of minimum and maximum, the natural definition of the Span for the Slot is the distance, on each
+    dimension, of the end from the start. The value of the span is therefore the deltas.
     
-    def __init__(self, **kwargs):    
+    You can initialize the SlotSpan giving just the value, or the start-end vertexes.
+    '''
+    
+    def __init__(self, *args, **kwargs):   
+        
+        trustme = kwargs['trustme'] if 'trustme' in kwargs else False
+        
+        # TODO: values -> deltas?
+        
+        # Values in the kwargs 
         start = kwargs.pop('start', None)
-        end   = kwargs.pop('end', None)
+        end   = kwargs.pop('end', None) 
         
-        if start is None:
-            raise InputException('Start is required')
-        if end is None:
-            raise InputException('Start is required')
+        # A slot Span does not require a start and an end, but they can be used to compute the span itself.
+        # In practice, you need or start-end or the span value.
         
-        # Compute the value of the span
-        self._value = [value for value in (end - start).values]
+        # If we do not have the value, let's compute it from start-end
+        if ('value' not in kwargs) or  ('value' in kwargs and kwargs['value'] is None):
+            if start is None or end is None:
+                raise InputException('If you do not provide the value, you must provide the start and the end')
+            else:
+                kwargs['value'] = [value for value in (end - start).values]
+                
+        # Cheks to perform if we have the value 
+        else:
+            if not trustme:
+                
+                # The slot value must be a list of floating points
+                if not isinstance (kwargs['value'], list):
+                    raise InputException('{}: my value must be a list of floating. Got "{}" ({})'.format(self.__class__.__name__, type(kwargs['value']), kwargs['value']))
+                
+                
+                #Check that no start-end has been provided (for consistency)
+                if start or end:
+                    raise InputException('If you provide the value you cannot provide the start or the end')
+            
+        # Call parent Init    
+        super(SlotSpan, self).__init__(*args, **kwargs)
 
-        # Set name (required by the base class). TODO: does this slows down? Probably yes..
-        kwargs['name'] = str(self._value)
 
-        # Call father Init    
-        super(SlotSpan, self).__init__(**kwargs)
+    # Handle symmetry property
+    @property
+    def is_symmetric(self):   
+        first_value = None
+        for value in self.value:
+            if first_value is None:
+                first_value = value
+                continue
+            else:
+                if first_value != value:
+                    return False            
+        return True
+
+
+
+#----------------------------------------
+#    Region Shapes
+#----------------------------------------
 
 
 class RegionShape(object):
@@ -103,62 +165,12 @@ class SlotShape(RegionShape):
         super(SlotShape, self).__init__(*args, **kwargs)
 
 
-# #----------------------------------------
-# #    Slot Types 
-# #----------------------------------------
-# 
-# 
-#   
-# class SlotType(RegionType):
-# 
-#     def get_end(self, start):
-#         raise NotImplementedError
-# 
-#     def rebase(self, point):
-#         raise NotImplementedError
-# 
-#     def navigate(self, point, shift):
-#         raise NotImplementedError
-# 
-# 
-# 
-# class TimeSlotType(SlotType):
-#     
-#     labels='t'
-#     
-#     def __init__(self, *args, **kwargs):        
-#         super(TimeSlotType, self).__init__(*args, **kwargs)
-#         from luna.spacetime.time import TimeSpan
-#         self.timeInterval = TimeSpan(self.name)
-#     
-#     def get_end(self, start):
-#         from luna.datatypes.dimensional import TimePoint
-#         return TimePoint(t=self.timeInterval.shift_dt(start.dt, times=1))
-# 
-#     def rebase(self, point):
-#         from luna.datatypes.dimensional import TimePoint
-#         return TimePoint(t=self.timeInterval.floor_dt(point.dt))
-
-
-
-# TODO: understand how to navigate a slot. Does it make sense? Do we need a pointer or something?
-#    def navigate(self, point, shift):
-#        from luna.datatypes.dimensional import TimePoint
-#        return TimePoint(self.old_timeSlot.rebase_date(point.dt, shift=shift))
-            
-
-# class SurfaceSlotType(SlotType):
-#     pass
-#     
-# class SpaceSlotType(SlotType):
-#     pass
-    
 
 #----------------------------------------
 #    Sensors
 #----------------------------------------
 
-# SensorTypes as object with inheritance..?
+# TODO: SensorTypes as object with inheritance..?
  
 class SensorType(object):
  
@@ -171,7 +183,7 @@ class SensorType(object):
      
     def _aggregate(self, data):
         self.aggregate()
-        # Check that proper aggregated_labels were produced
+        # TODO: Check that proper aggregated_labels were produced
          
      
  

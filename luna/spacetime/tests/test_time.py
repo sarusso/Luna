@@ -86,6 +86,10 @@ class test_time(unittest.TestCase):
         # Complex time intervals are not supported
         #with self.assertRaises(InputException):
         #   _ = TimeSlotSpan('15m', '20s')
+        
+        # TODO: test with spans
+        #print TimeSlotSpan('1m').value
+        #print TimeSlot(span=TimeSlotSpan('1m')).span.value
 
         # Not valid 'q' type
         with self.assertRaises(InputException):

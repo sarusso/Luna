@@ -185,6 +185,10 @@ class TimeSlotSpan(SlotSpan):
                        'u': 'microseconds'
                       }
 
+    @property
+    def is_symmetric(self):
+        return True
+
     def __init__(self, string=None, years=0, weeks=0, months=0, days=0, hours=0, minutes=0, seconds=0, microseconds=0, start=None, end=None):
  
         # String OR explicit OR start/end
@@ -226,12 +230,23 @@ class TimeSlotSpan(SlotSpan):
                     raise InputException('Error, got unknow interval ({})'.format(string))
 
                 setattr(self, self.mapping_table[groups[1]], int(groups[0]))
+ 
+        # We do not call the parent Init. The reson is because the The value of the span should be in seconds,
+        # but his value is not always defined (days-weeks-months-years), therefore we re-implement the value
+        # property using the duration property, which if it asked for days-weeks-months-years raises an error.
+        #super(TimeSlotSpan, self).__init__(value=[self.string])
 
 
+    # Handle the value property of the genrric Span
+    @property
+    def value(self):
+        return [self.duration]
+
+    # Representation..
     def __repr__(self):
         return self.string
 
-
+    # Operations..
     def __add__(self, other):
         
         if isinstance(other, self.__class__):
@@ -404,16 +419,16 @@ class TimeSlotSpan(SlotSpan):
  
         return time_shifted_dt      
 
-    def duration_s(self, time_dt):
+    def duration_s(self, start_time_dt=None):
         '''Get the duration of the interval in seconds'''
         if self.is_composite():
             raise InputException('Sorry, only simple time intervals are supported by this operation')
 
-        if self.type == 'Logical' and not time_dt:
+        if self.type == 'Logical' and not start_time_dt:
             raise InputException('With a logical TimeSlotSpan you can ask for duration only if you provide the starting point')
         
         if self.type == 'Logical':
-            raise NotImplementedError()
+            raise NotImplementedError('Computing the duration in seconds using a give start_time_dt is not yet supported')
 
         # Hours. Minutes, Seconds
         if self.hours:
@@ -430,7 +445,7 @@ class TimeSlotSpan(SlotSpan):
     @property
     def duration(self):
         if self.type == 'Logical':
-            raise InputException('Sorry, the duration of a logical time interval is not defined. use duration_s() providing the starting point.')
+            raise InputException('Sorry, the duration of a LOGICAL time span is not defined. use duration_s() providing the starting point.')
         return self.duration_s()
 
     # Get start/end  

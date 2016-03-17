@@ -36,8 +36,11 @@ class VolumetricSensorV1(PhysicalDataTimeSensor):
     # Set Slots operators
     Slots_data_labels  = ['flowrate_m3s_AVG', 'flowrate_m3s_MIN', 'flowrate_m3s_MAX', 'volume_m3_TOT'] 
     
-    # Set Validty interval
-    Points_validity_interval =  TimeSlotSpan('60s')
+    # Set validity region span for points
+    Points_validity_region_span = TimeSlotSpan('1m')
+    
+    # Fixed timezone:
+    timezone = "Europe/Rome"
 
 
 #------------------------------------

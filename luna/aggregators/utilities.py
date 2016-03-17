@@ -28,6 +28,9 @@ def compute_coverage(dataTimeSeries, start_dt, end_dt, prev_dataTimePoint, next_
   
     logger.info('--------------called compute coverage--------------')
 
+
+
+
     # Support vars
     prev_set_by_myself      = False
     dataTimePoint_processed = None
@@ -35,8 +38,6 @@ def compute_coverage(dataTimeSeries, start_dt, end_dt, prev_dataTimePoint, next_
     prev_valid_until_dt = None
     next_valid_from_dt  = None
 
-
-    
     for dataTimePoint in dataTimeSeries:
 
         if start_dt is None:
@@ -45,19 +46,24 @@ def compute_coverage(dataTimeSeries, start_dt, end_dt, prev_dataTimePoint, next_
         if end_dt is None:
             end_dt   = dataTimePoint.dt
 
+        print "--------- HARD DEBUG ------------"
+        print "dataTimePoint.dt", dataTimePoint.dt
+        print "dataTimePoint.validity_region.span", dataTimePoint.validity_region.span
+        print "-------------------- ------------"       
+
         # Handle previous data point validity
         if dataTimePoint.dt < start_dt:
             if not prev_dataTimePoint:
                 prev_set_by_myself  = True
-                prev_valid_until_dt = dataTimePoint.valid_until
+                prev_valid_until_dt = dataTimePoint.dt # + span / 2
             else:
                 if prev_set_by_myself:
-                    prev_valid_until_dt = dataTimePoint.valid_until
+                    prev_valid_until_dt = dataTimePoint.dt # - span / 2
                 else:
                     prev_valid_until_dt = start_dt
                     
             continue
-        elif dataTimePoint.dt >= start_dt and dataTimePoint.dt < start_dt:
+        elif dataTimePoint.dt >= start_dt and dataTimePoint.dt < end_dt:
             
             # Process here...
             print 'dataTimePoint', dataTimePoint
@@ -74,7 +80,7 @@ def compute_coverage(dataTimeSeries, start_dt, end_dt, prev_dataTimePoint, next_
         found_one = True
     
     # Process the last point
-    
+    print 'Done'
     return 1.0
 
 

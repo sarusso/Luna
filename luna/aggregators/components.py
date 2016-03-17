@@ -63,6 +63,7 @@ class DataTimePointsAggregator(Aggregator):
         #-------------------
         # Compute coverage
         #-------------------
+        logger.debug(' Now computing coverage...')
         Slot_coverage = compute_coverage(dataTimeSeries, start_dt, end_dt, prev_dataTimePoint, next_dataTimePoint)
 
         #--------------------------------------------
@@ -158,6 +159,7 @@ class DataTimePointsAggregator(Aggregator):
             
   
             # Ok, append the operation/generator results to the labels and values
+            logger.debug('Done runnign operations and generators')
             Slot_data_labels.append(Slot_data_label_to_generate)
             Slot_data_vaues.append(result)
           
@@ -171,7 +173,7 @@ class DataTimePointsAggregator(Aggregator):
         dataTimeSlot = self.Sensor.Slots_type(start    = TimePoint(t = start_dt),
                                               end      = TimePoint(t = end_dt),
                                               data     = Slot_physicalData,
-                                              type     = timeSlotSpan,
+                                              span     = timeSlotSpan,
                                               coverage = Slot_coverage)
 
         # Return results

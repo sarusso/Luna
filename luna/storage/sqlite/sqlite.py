@@ -43,19 +43,9 @@ class SQLiteDataTimeStream(DataTimeStream):
      
     def __init__(self, cur, query, sensor, data_type, labels=None, truncate=None):
                
-        # self.sensor.data_type      = PhysicalDataTimePoint
-        # self.sensor.data_data_type = PhysicalDimensionalData
-        # data_slot_type
-        
-        # Use the sensor for now, switch to pass these two later*
+        # Save sensor
+        self.sensor = sensor
 
-        # Points        
-        self.Points_type        = sensor.Points_type
-        self.Points_data_labels = sensor.Points_data_labels
-        
-        # Slots
-        self.Slots_type         = sensor.Slots_type
-        self.Slots_data_labels  = sensor.Slots_data_labels
 
         # Check valid type 
         if not ( issubclass(data_type, DataTimePoint)  or issubclass(data_type, DataTimeSlot) ):
@@ -97,9 +87,9 @@ class SQLiteDataTimeStream(DataTimeStream):
 
             if not self.labels:
                 if issubclass(DataTimePoint, self.data_type):
-                    self.labels = self.Points_data_labels  
+                    self.labels = self.sensor.Points_data_labels  
                 elif issubclass(DataTimeSlot, self.data_type):
-                    self.labels = self.Slots_data_labels
+                    self.labels = self.sensor.Slots_data_labels
                 else:
                     raise ConsistencyException('Got unknown type: {}'.format(self.data_type))
     
@@ -109,25 +99,30 @@ class SQLiteDataTimeStream(DataTimeStream):
             # self.sensor.data_type      = PhysicalDataTimePoint
             # self.sensor.data_data_type = PhysicalDimensionalData
         
+            # Hanlde the case of the Points
             if issubclass(DataTimePoint, self.data_type):
                 values = list(db_data[2:])
                 try:
-                    data = self.Points_type.data_type(labels=self.labels, values = values)
+                    data = self.sensor.Points_type.data_type(labels=self.labels, values = values)
                 except InputException, e:
                     logger.error("Could not initialiaze {} with labels={} and values={}, got error: {}".format(self.Points_data_type, self.labels, values, e)) 
                 else:
-                    DataTime_Point_or_Slot = self.Points_type(t=db_data[0], tz = "Europe/Rome", data=data) #TODO: validity_interval=self.sensor.Points_validity_interval)
+                    DataTime_Point_or_Slot = self.sensor.Points_type(t                    = db_data[0],
+                                                                     tz                   = self.sensor.timezone,
+                                                                     data                 = data,
+                                                                     validity_region_span = self.sensor.Points_validity_region_span)
     
+            # Hanlde the case of the Slots
             elif issubclass(DataTimeSlot, self.data_type):
                 values = list(db_data[4:])
                 try:
-                    data = self.Slots_type.data_type(labels=self.labels, values = values)
+                    data = self.sensor.Slots_type.data_type(labels=self.labels, values = values)
                 except:
                     logger.error("Could not initialiaze {} with labels={} and values={}".format(self.Slots_data_type, self.labels, values)) 
                 else:    
-                    DataTime_Point_or_Slot = self.Slots_type(start = TimePoint(t=db_data[0], tz = "Europe/Rome"),
-                                                             end   = TimePoint(t=db_data[1], tz = "Europe/Rome"),
-                                                             data  = data, ) # TODO: add type=SlotType(type_shprtname_from_db)
+                    DataTime_Point_or_Slot = self.sensor.Slots_type(start = TimePoint(t=db_data[0], tz = "Europe/Rome"),
+                                                                    end   = TimePoint(t=db_data[1], tz = "Europe/Rome"),
+                                                                    data  = data, ) # TODO: add type=SlotType(type_shprtname_from_db)
             else:
                 raise ConsistencyException('Unknown type, got {}'.format(self.data_type))  
             

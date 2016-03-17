@@ -163,31 +163,33 @@ class test_dimensional(unittest.TestCase):
         # Test deltas
         self.assertEquals(slot1.deltas, [4,5])
         
-        # Test impossibility of re-anchoring a TimeSlot
+        # Not anchored Slot raise an error:
         with self.assertRaises(InputException):
-            slot1.anchor_to(start_Point1)
+            _ = Slot(span=Span(value=[2,3]), labels=['a','b'])
         
-        # Not anchored Slot
-        slot5 = Slot(span=Span('test'), labels=['a','b'])
-        self.assertEqual(slot5.anchor, None)
-        self.assertEqual(slot5.orientation, None)
-        self.assertEqual(slot5.start, None)
-        self.assertEqual(slot5.end, None)
+        #-----------------------------------------------------------------------------
+        # TODO: fix the tests by removing the ones here and adding new proper ones
+        #-----------------------------------------------------------------------------
+
+        #self.assertEqual(slot5.anchor, None)
+        #self.assertEqual(slot5.orientation, None)
+        #self.assertEqual(slot5.start, None)
+        #self.assertEqual(slot5.end, None)
 
         # Anchor the slot
-        slot5.anchor_to(start_Point1)
-        self.assertEqual(slot5.anchor, start_Point1)
-        self.assertEqual(slot5.orientation, None)
+        #slot5.anchor_to(start_Point1)
+        #self.assertEqual(slot5.anchor, start_Point1)
+        #self.assertEqual(slot5.orientation, None)
              
-        self.assertEqual(slot5.start, start_Point1)
+        #self.assertEqual(slot5.start, start_Point1)
 
-        with self.assertRaises(NotImplementedError): # TODO: Actually
-            _ = slot5.end
+        #with self.assertRaises(NotImplementedError): # TODO: Actually
+        #    _ = slot5.end
 
         # Deltas are not defined if end is not implemented
         # TODO: deltas?! Wheer we need hem?!
-        with self.assertRaises(NotImplementedError): # TODO: Actually
-            _ = slot5.deltas
+        #with self.assertRaises(NotImplementedError): # TODO: Actually
+        #    _ = slot5.deltas
 
         # TODO: Define SimpleSlotType(str([5,6])] to do the above tests also with deltas etc?
 
@@ -275,9 +277,10 @@ class test_dimensional(unittest.TestCase):
         self.assertEqual(timeSlot.end, end_timePoint)
 
 
-        # Test 'floating' timeslot
+        # Test that a 'floating' timeslot is not allowed:
         timeSlotSpan = TimeSlotSpan("1h")
-        timeSlot = TimeSlot(span=timeSlotSpan)
+        with self.assertRaises(InputException):
+            timeSlot = TimeSlot(span=timeSlotSpan)
 
 
     def test_SpaceSlot(self):
@@ -290,6 +293,87 @@ class test_dimensional(unittest.TestCase):
 
         with self.assertRaises(InputException):
             _ = PhysicalData(labels=['power_W_j_h_d'], values=[2.65])
+
+
+    def test_Span(self):
+        
+        #--------------------
+        # Test Span
+        #--------------------
+        
+        # Initialize the Span in the wrong way
+        with self.assertRaises(InputException):
+            _ = Span()
+
+        with self.assertRaises(InputException):
+            _ = Span('spareArg')
+        
+        # Initialize the Span  
+        span = Span(value=5)
+        
+        # Test the value
+        self.assertEqual(span.value, 5)
+        
+        # Test the representation
+        self.assertEqual(str(span), 'Span of value: 5')
+
+
+        # Test methods and properties to be implemented
+        with self.assertRaises(NotImplementedError):
+            _ = span.get_start(end=None)        
+        
+        with self.assertRaises(NotImplementedError):
+            _ = span.get_end(start=None)    
+
+        with self.assertRaises(NotImplementedError):
+            _ = span.is_symmetric
+
+
+        
+
+        #--------------------
+        # Test Slot Span
+        #--------------------        
+
+        # Initialize the SlotSpan in the wrong way
+        with self.assertRaises(InputException):
+            _ = SlotSpan()
+            
+        with self.assertRaises(InputException):  
+            _ = SlotSpan(start=Point(label_a=2,label_b=1), end=Point(label_a=5,label_z=5)) # label_z is wrong
+        
+        # Initialize the SlotSpan
+        slotSpan1 = SlotSpan(value=[5,5])
+        slotSpan2 = SlotSpan(start=Point(label_a=2,label_b=1), end=Point(label_a=5,label_b=5))
+        
+        # TODO: with the following two we are actually indirectly testing the Point subtraction, move somewhere else..
+        slotSpan3 = SlotSpan(start=Point(label_a=5,label_b=5), end=Point(label_a=5,label_b=5))
+        slotSpan4 = SlotSpan(start=Point(label_a=8,label_b=10), end=Point(label_a=5,label_b=5))
+        
+        # Test wrong Init
+        
+        # Test the values
+        self.assertEqual(slotSpan1.value, [5,5])
+        self.assertEqual(slotSpan2.value, [3,4])
+
+        # TODO: with the following two we are actually indirectly testing the Point subtraction, move somewhere else..
+        self.assertEqual(slotSpan3.value, [0,0])
+        self.assertEqual(slotSpan4.value, [-3,-5])
+        
+        # Get start / end are not yet implemented (but they could be quite easily)
+        
+
+        with self.assertRaises(NotImplementedError):
+            _ = span.get_start(end=None)        
+        
+        with self.assertRaises(NotImplementedError):
+            _ = span.get_end(start=None)    
+
+        # Test the symmetry check
+        self.assertTrue(slotSpan1.is_symmetric)     # [5,5]
+        self.assertFalse(slotSpan2.is_symmetric)    # [3,4]
+        self.assertTrue(slotSpan3.is_symmetric)     # [0,0]
+        self.assertFalse(slotSpan4.is_symmetric)    # [-3,-5]
 
     def tearDown(self):
         pass

@@ -23,55 +23,102 @@ from luna.datatypes.dimensional import *
 
 # Ancestors
 class DataPoint(Point):
-    '''A Point with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image).
-    The data point has also the concept of the validity interval attached, which is defined based on the data it carries with him.
-    You can use the two properties valid_from and valid_until to apply the validity interval transparently.'''
+    '''A Point with some data attached, which can be both dimensional (i.e. another point) or 
+    adimensional (i.e. an image). The DataPoint introduces also the concept of the validity region,
+    which is defined based on the data it carries with him: the validity region (or uniformity region)
+    is in fact the region in which the variation of the "measured" value is postulated to be negligible.
+    Please note that the validity region _must_ be a symmetric Region. In addition to the validity region,
+    another required parameter is the validity span, which is required for defining the validity region and
+    that and dat vary on a per-point basis (i.e. all the temperature sensors has a spherical validity Region,
+    bit its shape can vary if they are indoor or outdoor. Or, more simply, the validity region is a temporal
+    segment but it width can vary according to the circumstances. One final note: even if the validity region
+    must be a symmetric region, nothing prevents you to use assymetric region in particular implementations
+    of the DataPoint. For example, in a TimeDataPoint you could use a validity region projected forward in
+    time to achieve the so called event-based data streams.'''
+    
+    # New
+    '''The validity region by default is a Slot, centered on the middle point, and the Span is a SlotSpan, but you can
+    change it just by using the validty_region_class and validty_span_class validity_region_anchor ''' 
+    
+    
+    validity_region_class  = Slot
 
     def __init__(self, *argv, **kwargs):
-        
-        # Args for the Datapoint
-        self.data   = kwargs.pop('data', None)
-        self.validity_interval = kwargs.pop('validity_interval', None)
 
         # Trustme switch        
         trustme = kwargs['trustme'] if 'trustme' in kwargs else False
+        
+        # Args for the DataPoint
+        self.data   = kwargs.pop('data', None)
+        
+        # If validity_region_class is passed, override and set the new one (and check if necessary)
+        if 'validity_region_class' in kwargs:
+            self.validity_region_class = kwargs.pop('validity_region_class')
 
+        # Set validty_region_span
+        validity_region_span  = kwargs.pop('validity_region_span', None)
+        
+        # Set the span only if it is not None
+        if validity_region_span is not None:
+            self.validity_region_span = validity_region_span
+            
         # Consistency checks
-        if not trustme:     
-            if self.validity_interval and not isinstance(self.validity_interval, Interval):
-                raise InputException('Point validty interval must be a Interval, got {}'.format(type(self.validity_interval)))
+        if not trustme:              
+            
+            # Check valid validity_region_class
+            if not issubclass(self.validity_region_class, Region):
+                raise InputException('Point validity region class must be a subclass of Region, got {}'.format(type(self.validity_region)))  
+            
+            # If we are have a validity span and therefore a validity region:  
+            if validity_region_span is not None:
+                
+                # Check valid Span
+                if not isinstance(self.validity_region_span, Span):
+                    raise InputException('Point validity region span must be a subclass of Span, got {}'.format(type(self.validity_region_span)))  
 
+
+        # Call parent Init
         super(DataPoint, self).__init__(*argv, **kwargs)
+
+        # Consistency checks (after parent Init)
+        if not trustme:  
+            # If we are have a validity span and therefore a validity region:  
+            if validity_region_span is not None:
+                # Check symmetry # TODO: this check raise the creation of the validity Region object. Change logic for performance? 
+                if self.validity_region and not self.validity_region.is_symmetric:
+                    raise InputException('The the validity region _must_ be a symmetric Region, the one you provided it is not.')
+
+
 
     def __repr__(self):
         return '{}, labels: {}, values: {}, first data label: {}, with value: {}'.format(self.__class__.__name__, self.labels, self.values, self.data.labels[0], self.data.values[0])
     # TODO: check this (and export the isintsnace check in the base classes). Also, call the super.__eq__ and then add these checks!
+
 
     def __eq__(self, other): 
         if not isinstance(self, other.__class__):
             return False
         return (self.values == other.values) and (self.labels == other.labels) and (self.data == other.data)       
 
-    # De-implment sum and subtraction as since now we carry data it just not make any sense
+
+    # Un-implment sum and subtraction as since now we carry data it just not make any sense
     def __sub__(self, other, trustme=False):
         raise NotImplemented('Subtracting two DataPoints does not make sense')
     def __sum__(self, other, trustme=False):
         raise NotImplemented('Subtracting two DataPoints does not make sense')
 
+
     @property
     def data_type(self):
         raise NotImplemented('{}: you cannot access the data_type attribute if you do not extend the basic DataPoint object specifying a type'.format(self.__class__.__name__))
 
+    # Validity region. TODO: Save it in a _validty_region variable for performance?
     @property
-    def valid_from(self):
-        '''Returns the start of the validity for the point'''
-        raise NotImplemented()
-
-    @property
-    def valid_until(self):
-        '''Returns the start of the validity for the point'''
-        raise NotImplemented()
+    def validity_region(self):
         
+        # Center on lower corner
+        return self.validity_region_class(start=self, span=self.validity_region_span)
+
         
 
 class DataSlot(Slot):
@@ -95,8 +142,6 @@ class DataSlot(Slot):
     @property
     def data_type(self):
         raise NotImplemented('{}: you cannot access the data_type attribute if you do not extend the basic DataSlot object specifying a type'.format(self.__class__.__name__))
-
-
  
 # Composite
 class DataTimePoint(TimePoint, DataPoint):
@@ -104,21 +149,22 @@ class DataTimePoint(TimePoint, DataPoint):
     def __repr__(self):
         return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
 
-    @property
-    def valid_from(self):
-        '''Returns the start of the validity for the point'''
-        if self.validity_interval:
-            return self.dt - self.validity_interval
-        else:
-            return self.dt
-
-    @property
-    def valid_until(self):
-        '''Returns the start of the validity for the point'''
-        if self.validity_interval:
-            return self.dt + self.validity_interval
-        else:
-            return self.dt
+# Decided to remove them to allow a more agnostic approach using the region and the span
+#     @property
+#     def valid_from(self):
+#         '''Returns the start of the validity for the point'''
+#         if self.validity_region:
+#             return self.dt - self.validity_region
+#         else:
+#             return self.dt
+# 
+#     @property
+#     def valid_until(self):
+#         '''Returns the start of the validity for the point'''
+#         if self.validity_region:
+#             return self.dt + self.validity_region
+#         else:
+#             return self.dt
 
 
 class DataTimeSlot(TimeSlot, DataSlot):
@@ -269,7 +315,7 @@ class DataTimeSeries(TimeSeries):
         # TODO: use the data_type
         if self._data:
             if isinstance(self._data[0], TimeSlot):
-                return '{} of {} {} ({}), first TimeSlot start: {}, last TimeSLot start: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].type, self._data[0].start.dt, self._data[-1].start.dt, self.tz)                
+                return '{} of {} {} ({}), first TimeSlot start: {}, last TimeSLot start: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].span, self._data[0].start.dt, self._data[-1].start.dt, self.tz)                
             else:    
                 return '{} of {} {}, start: {}, end: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].dt, self._data[-1].dt, self.tz)
         else:

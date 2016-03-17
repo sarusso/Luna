@@ -1,8 +1,37 @@
 import unittest
-from luna.datatypes.composite import DataTimeSeries, DataTimePoint, DataTimeSlot, TimePoint
-from luna.datatypes.dimensional import Point
+from luna.datatypes.composite import DataTimeSeries, DataTimePoint, DataTimeSlot, TimePoint, DataPoint
+from luna.datatypes.dimensional import Point, Slot
+from luna.datatypes.auxiliary import Span, SlotSpan
 from luna.common.exceptions import InputException
 from luna.spacetime.time import TimeSlotSpan
+
+
+class test_dataPoint(unittest.TestCase):
+
+    def setUp(self):
+        pass
+    
+    def test_init(self):
+        
+        dataPoint1 = DataPoint(label_t=63636, data='string_data')
+        dataPoint2 = DataPoint(label_t=63636, data=None)
+        dataPoint3 = DataPoint(label_t=63636, data=None, validity_region_span=SlotSpan(value=[60]))
+        
+        self.assertEqual(dataPoint1.data,'string_data')
+        self.assertEqual(dataPoint2.data,None)
+        self.assertEqual(dataPoint3.data,None)
+        
+        # TODO: fix this
+        # print dataPoint1.validity_region 
+        # print dataPoint3.validity_region.start
+        
+        
+        #TimeSlot(span=TimeSlotSpan('1m'))
+
+
+    def tearDown(self):
+        pass
+
 
 class test_dataTimePoint_DataTimeSeries(unittest.TestCase):
 
@@ -68,20 +97,18 @@ class test_dataTimePoint_DataTimeSeries(unittest.TestCase):
 
 
 
-# TODO: rename timeDataSlo in dataTimeSlot!!
-class test_timeDataSlot_DataTimeSeries(unittest.TestCase):
+class test_dataTimeSlot_DataTimeSeries(unittest.TestCase):
 
     def test_one(self):
-        
-        
+               
         # Test without TimeSlotType
         dataTimeSeries = DataTimeSeries(index=False)
         for i in range(10):
             data = Point(labels=["power_W", "current_A", "voltage_V"], values=[113.67+i, 3124.67+i, 23.76+i])
-            timeDataSlot = DataTimeSlot(start = TimePoint(t = 1000000020 + (i*60), tz="Europe/Rome"),
+            dataTimeSlot = DataTimeSlot(start = TimePoint(t = 1000000020 + (i*60), tz="Europe/Rome"),
                                         end   = TimePoint(t = 1000000020 + (i+1)*60, tz="Europe/Rome"),
                                         data  = data)
-            dataTimeSeries.append(timeDataSlot)
+            dataTimeSeries.append(dataTimeSlot)
             
         self.assertEqual(dataTimeSeries.tz, "Europe/Rome")
 
@@ -89,11 +116,11 @@ class test_timeDataSlot_DataTimeSeries(unittest.TestCase):
         dataTimeSeries = DataTimeSeries(index=False) # TODO: if you omit this line you get an error (point added < start: add test and better printing for the slots)
         for i in range(10):
             data = Point(labels=["power_W", "current_A", "voltage_V"], values=[113.67+i, 3124.67+i, 23.76+i])
-            timeDataSlot = DataTimeSlot(start = TimePoint(t = 1000000020 + (i*60), tz="Europe/Rome"),
+            dataTimeSlot = DataTimeSlot(start = TimePoint(t = 1000000020 + (i*60), tz="Europe/Rome"),
                                         end   = TimePoint(t = 1000000020 + (i+1)*60, tz="Europe/Rome"),
                                         data  = data,
                                         span  = TimeSlotSpan("1m"))
-            dataTimeSeries.append(timeDataSlot)
+            dataTimeSeries.append(dataTimeSlot)
             
         self.assertEqual(dataTimeSeries.tz, "Europe/Rome")
 

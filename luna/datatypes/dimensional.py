@@ -219,22 +219,26 @@ class Space(Base):
         # Consistency checks
         if not trustme:
             
-            # Check that labels are set       
+            # Check that labels are set and that they are a list   
             if not self._labels:
                 raise InputException('{}: Got No labels'.format(self.classname))
-    
-        # Call parent init
+            if not isinstance(self._labels, list):
+                raise InputException('{}: Labels are not of type list, got ({})'.format(self.classname, type(self._labels)))
+        
+        # Call parent Init
         super(Space, self).__init__(**kwargs)
                 
     # Labels property    
     @property
     def labels(self):
-        return self._labels
-
+        try:
+            return self._labels
+        except AttributeError:
+            raise ConsistencyException('{}: No _lables (yet) defined, you hit a bug.'.format(self.__class__.__name__))
 
 class Coordinates(Base):
     '''A coordinates list. If contextualized in a Space with labels, each coordinate will also have its own label and it will be accessible by label.
-    Inpractical terms, by "contextualized in a Space" means to extend a Space object or to be base classes together with a Space object.'''
+    In practical terms, by "contextualized in a Space" means to extend a Space object or to be base classes together with a Space object.'''
 
     def __init__(self, **kwargs):
        
@@ -261,7 +265,7 @@ class Coordinates(Base):
             # Assign the values to this object..
             self._values = _values
             
-            # ..and add back the labels into the kwargs (in caso of an overddie, it is fine)
+            # ..and add back the labels into the kwargs (in case of an override, it is fine)
             kwargs['labels'] = _labels
             
             # Warn for  performance at the end
@@ -342,8 +346,15 @@ class Point(Coordinates, Space):
 class Region(Space):
     '''A Region in a n-dimensional space. It can be both floating or anchored. Shape and Span are mandatory. Anchor is optional'''
 
+    # First of all define if teh Region is symmetric or not. By default it is not.
+    is_symmetric = False
+
     # Equality to take into account the type and if the Region is anchored or not
     def __eq__(self, other):
+        # Check equality on shape
+        if self.shape or other.shape:
+            if self.shape != other.shape:
+                return False         
         # Check equality on span
         if self.span or other.span:
             if self.span != other.span:
@@ -367,13 +378,20 @@ class Region(Space):
         # Region span (i.e. 2x4, or 4x8, or 15d, or 124s, or just 3 in case of a sphere)        
         self.span  = kwargs.pop('span', None)
 
+        # Region anchor
+        self.anchor = kwargs.pop('anchor', None)
+        
         # Trustme switch        
         trustme = kwargs['trustme'] if 'trustme' in kwargs else False
+
+        # Check old init
+        if 'orientation' in kwargs:
+            raise InputException('{}: sorry, orientation is deprecated'.format(self.classname))
 
         # Consistency checks
         if not trustme:     
 
-            # Check shape is set
+            # Check shape is set and is of the right 
             if not self.shape:
                 raise InputException('{}: The "shape" attribute is required.'.format(self.classname))
             else:
@@ -384,53 +402,40 @@ class Region(Space):
                 raise InputException('{}: The "span" attribute is required.'.format(self.classname))
             else:
                 assert isinstance(self.span, Span), "Region shape not of RegionShape instance"
-
-
-            # Check consistency of the span with the shape
-            # TODO..
                 
-            # Check labels or anchor
-            # TODO: !!!
-            # TODO: Do non permit unanchored regions?!
-            # TODO: !!!
-            if not 'anchor' in kwargs and not 'labels' in kwargs:
-                raise InputException('You need to provide me an anchor or the labels of the space where I will live in')
+            # Check anchor is set:
+            if self.anchor is None:
+                raise InputException('{}: The "anchor" attribute is required.'.format(self.classname))
+            else:
+                assert (isinstance(self.anchor, Point)), 'Given anchor is not of type Point, got {}'.format(type(self.anchor))
 
-        # Anchor & orientation
-        self.anchor_to(kwargs.pop('anchor', None), kwargs.pop('orientation', None), trustme=trustme)
-
-        if self.anchor and 'labels' in kwargs:
-            if not trustme:
-                # Check consistency between anchor and labels
-                assert (self.anchor.labels == kwargs['labels'])
-                
-        if self.anchor and 'labels' not in kwargs:
-            kwargs['labels'] = self.anchor.labels
-
-        super(Region, self).__init__(*args, **kwargs)
-
-    # Function to anchor a floating Region
-    def anchor_to(self, anchor=None, orientation=None, trustme=False):
-        if hasattr(self, 'anchor') and self.anchor:
-            raise InputException('{} is already anchored (to {})'.format(self.classname, self.anchor))
-        if hasattr(self, 'orientation') and self.orientation:
-            raise ConsistencyException('{} has no anchor but orientation?! (orientation = {})'.format(self.classname, self.orientiation))
+        # TODO: avoid saving the labels twice in case of anchor and no labels?
         
-        self.anchor = anchor
-        self.orientation = orientation    
-
-        if not trustme:
-            if self.anchor:
-                assert (isinstance(self.anchor, Point)), 'Given nchor is not of type Point, got {}'.format(type(self.anchor))
-            
-            if hasattr(self, 'labels'):
-                # Check consisteny between my labels and anchor labels
+        # Check if labels are already set by some child class # TODO: move this in the Space?
+        if hasattr(self, '_labels'):
+            if 'labels' in kwargs:
+                raise InputException('{} sorry, I already have labels set "{}", you cannot give me other ones (I got "{}")'.format(self.classname, self.labels, kwargs['labels']))
+            else:
                 if self.anchor.labels != self.labels:
-                    raise InputException('{} my anchor labels ({}) are different than my already set labels ({})'.format(self.classname, self.anchor.labels, self.labels))
-                
-            # TODO: self.type.validate_anchor(self.anchor)               # Not sure, anchor lives int he same space in which the region lives so validation shoudl be automatic
-            # TODO: self.type.validate_orientation(self.orientation)     # Actually, the question is: Does this type know how to anchor to this anchor? i.a. A TimeSLotType cannot anchor ina  3d space.
-            
+                    raise InputException('{}: my anchor labels "{}" are different than my already set labels "{}"'.format(self.classname, self.anchor.labels, self.labels))
+
+       
+        else:
+            # Otherwise, dynamically set labels from the anchor if they are not provided:
+            if 'labels' not in kwargs:
+                kwargs['labels'] = self.anchor.labels
+    
+        # Call parent Init
+        super(Region, self).__init__(*args, **kwargs)
+    
+        if not hasattr(self, '_labels') and 'labels' in kwargs :
+            # Check consistency of provided labels and anchor's labels. We do it here to have triggered
+            # the validation of the labels in the meanwhile
+                if self.anchor.labels != kwargs['labels']:
+                    raise InputException('{} my anchor labels "{}" are different than the labels you provided me "{}"'.format(self.classname, self.anchor.labels, kwargs['labels']))
+
+        
+
 
             
 
@@ -443,11 +448,10 @@ class Slot(Region):
     
     Please not that the slot is always intended to be with left included, right excluded.'''
     
-    default_Span = SlotSpan
-    default_Span_unit = ''
+    # Set which Span object to use
+    Span_object = SlotSpan
 
     def __init__(self, *args, **kwargs):
-
 
         # We are a slot, set this shape
 
@@ -488,11 +492,7 @@ class Slot(Region):
         # Note: at this point we have only the self.end and the start, not the self.end.
         if start and end and 'span' not in kwargs:
             span_derived = True
-#             if len(start.values) == 1:
-#                 kwargs['span'] = self.default_Span( str((end.values[0] - start.values[0])) + self.default_Span_unit)
-#             else:
-#                 kwargs['span'] = self.default_Span( str(start.values) + ' - ' + str(end.values) + self.default_Span_unit)
-            kwargs['span'] = self.default_Span(start=start, end=end)
+            kwargs['span'] = self.Span_object(start=start, end=end)
         else:
             span_derived = False        
 
@@ -536,9 +536,15 @@ class Slot(Region):
     def start(self):
         return self.anchor
 
+    # TODO: deltas are an interesting concept, which should be used in the span.
     @property
     def deltas(self):
         return [ (self.end.values[i] - self.start.values[i]) for i in range(len(self.start.values))]
+
+    # A slot is symmetric only if its span also is (and therefore the Slot is a n-square).    
+    @property
+    def is_symmetric(self):
+        return self.span.is_symmetric
 
 
 #-------------------
@@ -658,26 +664,36 @@ class TimeSlot(Slot):
     can be automatically computed.
     '''
  
-    default_Span = TimeSlotSpan
-    default_Span_unit = 's'
+    # Set which Span object to use
+    Span_object = TimeSlotSpan
         
     # Ensure start,end = TimePoint()
     def __init__(self, *args, **kwargs):
         
-        # Handle a floating TimeSlot. The Slot (actually, the Region) an anchor (if not floating) 
-        # or the labels of the space where it will live in (if floating)
-        if 'start' not in kwargs:
-            kwargs['labels'] = 't'
-        
+        # Define the static labels for this Region (the space where it lives in)
+        kwargs['labels'] = ['t']
+              
+        # Check for correct types. Note that Slot will take care of checking that at least two of the
+        # start-end-span are set.
+        if 'start' in kwargs and not isinstance(kwargs['start'], TimePoint):
+            raise InputException('{}: provided start is not of type TimePoint, got '.format(self.classname), type(kwargs['start']))
+
+        if 'end' in kwargs and not isinstance(kwargs['end'], TimePoint):
+            raise InputException('{}: provided end is not of type TimePoint, got '.format(self.classname), type(kwargs['end']))
+
+        if 'span' in kwargs and not isinstance(kwargs['span'], TimeSlotSpan):
+            raise InputException('{}: provided span is not of type TimeSlotSpan, got '.format(self.classname), type(kwargs['span']))
+                
+        # Call parent Init
         super(TimeSlot, self).__init__(*args, **kwargs)
-        
-        # Checks
-        if self.start: assert(isinstance(self.start, TimePoint))
-        if self.end: assert(isinstance(self.end, TimePoint))
-        if self.span: assert(isinstance(self.span, TimeSlotSpan))
+
         
     def __repr__(self):
-        return '{}: from {} to {} with {}'.format(self.classname, self.start.dt, self.end.dt, self.span)
+        # The representation works even if onlu the span is set. TODO: understand if this is what we want..
+        if self.start is not None:
+            return '{}: from {} to {} with {}'.format(self.classname, self.start.dt, self.end.dt, self.span)
+        else:
+            return '{}: with {}'.format(self.classname, self.span)
  
     @property
     def tz(self):
@@ -686,7 +702,7 @@ class TimeSlot(Slot):
 
 
 class SurfaceSlot(Point):
-    '''A slot  in a 3-dimensional space, the space.'''
+    '''A slot in a 3-dimensional space, the space.'''
 
     # Ensure start,end = SpacePoint()
     def __init__(self, *argv, **kwargs):
