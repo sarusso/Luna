@@ -448,15 +448,49 @@ class TimeSlotSpan(SlotSpan):
             raise InputException('Sorry, the duration of a LOGICAL time span is not defined. use duration_s() providing the starting point.')
         return self.duration_s()
 
-    # Get start/end  
-    def get_end(self, start):
-        from luna.datatypes.dimensional import TimePoint
-        return TimePoint(t=self.shift_dt(start.dt, times=1))
- 
-    # TODO: do we need rebase?!
-    #def rebase(self, point):
-    #    from luna.datatypes.dimensional import TimePoint
-    #    return TimePoint(t=self.timeInterval.floor_dt(point.dt))
+    #-----------------------------------------------------------------------------------------
+    # TODO: The following has been re-implemented to handle time zone! Is there a better way?
+    #-----------------------------------------------------------------------------------------
+
+    # Get start/end/center
+    def get_start(self, end=None, center=None):
+        new_values = []
+        if end is not None:
+            for i in range(len(self.value)):
+                new_values.append(end.values[i] - self.value[i])
+            return end.__class__(labels=end.labels, values=new_values, tz=end.tz)        
+        elif center is not None:
+            for i in range(len(self.value)):
+                new_values.append(center.values[i] - self.value[i]/2.0)
+            return center.__class__(labels=center.labels, values=new_values, tz=center.tz)
+        else:
+            raise InputException('get_start: Got not end not center')        
+            
+    def get_end(self, start=None, center=None):
+        new_values = []
+        if start is not None:
+            for i in range(len(self.value)):
+                new_values.append(self.value[i] + start.values[i])
+            return start.__class__(labels=start.labels, values=new_values, tz=start.tz)           
+        elif center is not None:
+            for i in range(len(self.value)):
+                new_values.append(center.values[i] + self.value[i]/2.0) 
+            return center.__class__(labels=center.labels, values=new_values, tz=center.tz) 
+        else:
+            raise InputException('get_end: Got not end not center')
+
+    def get_center(self, start=None, end=None):
+        new_values = []
+        if start is not None:
+            for i in range(len(self.value)):
+                new_values.append(start.values[i] + self.value[i]/2.0)
+            return start.__class__(labels=start.labels, values=new_values, tz=start.tz)           
+        elif end is not None:
+            for i in range(len(self.value)):
+                new_values.append(end.values[i] - self.value[i]/2.0) 
+            return end.__class__(labels=end.labels, values=new_values, tz=end.tz) 
+        else:
+            raise InputException('get_center: Got not end not start') 
 
 
 

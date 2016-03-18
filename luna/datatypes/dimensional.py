@@ -453,7 +453,7 @@ class Slot(Region):
 
     def __init__(self, *args, **kwargs):
 
-        # We are a slot, set this shape
+        
 
         # Trustme switch        
         trustme = kwargs['trustme'] if 'trustme' in kwargs else False
@@ -465,78 +465,126 @@ class Slot(Region):
                 if ('start' not in kwargs) or ('end' not in kwargs):
                     raise InputException('{}: type not set and not start-end given.'.format(self.classname))
 
-        # !!!!!!!!!!!!!!!!!!
-        # TODO: Rewrite everything, to be symmetric in start-end-span triplet. Also check anchor.
-        # !!!!!!!!!!!!!!!!!!
 
+        # Hanlde start - end - anchor Check that we have at least two out of start-end-span
+        start  = kwargs.pop('start', None)
+        end    = kwargs.pop('end', None)
+        span   = kwargs['span'] if 'span' in kwargs else None
+        anchor = kwargs['anchor'] if 'anchor' in kwargs else None
 
-        # If start is set it becomes the anchor of the slot region
-        start = kwargs.pop('start', None)
-        if start:
-            assert isinstance(start, Point), "Slot start not of Point instance"                
-            kwargs['anchor'] = start
+        # Consistency checks
+        if not trustme: 
+            if span:
+                assert isinstance(span, Span), "Provided Slot anchor not of Span instance"
+            if anchor:
+                assert isinstance(anchor, Point), "Provided Slot anchor not of Point instance"
+            if start:
+                assert isinstance(start, Point), "Provided Slot start not of Point instance"
+            if end:
+                assert isinstance(end, Point), "Provided Slot end not of Point instance" 
+              
+        #---------------------------------------
+        # 1) Special case: we have the anchor
+        #---------------------------------------
+        # If so check that no start-end have been provided.
+        # Note: start and end are handled by properties!
+        if anchor:
 
-        # End is handled by a property
-        end = kwargs.pop('end', None)
-        self._end = end
-        if end:
-            assert isinstance(self._end, Point), "Slot end not of Point instance"
+            if start is not None or end is not None:
+                raise InputException('{}: Sorry, if you directly provide the anchor you cannot provide start or end'.format(self.classname))
+
+            if not span:
+                raise InputException('{}: I got the anchor but not the span which is required in this context!'.format(self.classname))
         
-        # If end is given, check compatibility between start and end
-        if not trustme and start and end:
-            start.is_compatible_with(end, raises=True)                
+        #---------------------------------------
+        # 2) Do we have start, end, and span?
+        #---------------------------------------
+        elif start is not None and end is not None and span is not None:
+            
+            # Set anchor
+            kwargs['anchor'] = span.get_center(start=start)
+            
+            # Check consistency between the three
+            if not trustme:
+                if span.get_end(start=start) != end:
+                    raise InputException('{}: Error: inconsistent start/end with span (start={}, end={}, span={}), expected end based on span should be {}'.format(self.__class__.__name__, start, end, span, span.get_end(start=start)))
+
+
+        #---------------------------------------
+        # 3) Do we have start and span?
+        #---------------------------------------
+        elif start is not None and span is not None:
+            
+            # Set anchor
+            kwargs['anchor'] = span.get_center(start=start)
+            
+        #---------------------------------------
+        # 4) Do we have end and span?
+        #---------------------------------------
+        elif end is not None and span is not None:
+            
+            # Set anchor
+            kwargs['anchor'] = span.get_center(end=end)
         
-        # If we have no span, we set it anyway by using "start" and "end".
-        # "start" and "end" are indeed Points for which the subtraction is defined,
-        # and for which the string representation is also defined.
-        # Note: at this point we have only the self.end and the start, not the self.end.
-        if start and end and 'span' not in kwargs:
-            span_derived = True
+        #---------------------------------------
+        # 5) Do we have only start and end?
+        #---------------------------------------
+        elif start is not None and end is not None:
+            
+            if not trustme:
+                
+                # Compatibility check:
+                start.is_compatible_with(end, raises=True)         
+                
+                # Check that start is before end
+                for i in range(len(start.values)):
+                    if not start.values[i] < end.values[i]:
+                        raise InputException('{}: Start equal or after end on dimension #{}'.format(self.classname,i))
+
+            # If we have no span, we set it anyway by using "start" and "end".
+            # "start" and "end" are indeed Points for which the subtraction is defined,
+            # and for which the string representation is also defined.
             kwargs['span'] = self.Span_object(start=start, end=end)
-        else:
-            span_derived = False        
 
-        # Set shape
+            # Set anchor
+            kwargs['anchor'] = kwargs['span'].get_center(start=start)
+                   
+        else:
+            raise InputException('{}: Sorry, you have to provide me anchor+span, or start+span, or end+span, or start+end, or start+end+span'.format(self.__class__.__name__))
+
+        # We are a slot, set this shape
         kwargs['shape'] = SlotShape
 
         # Call Father constructor
         super(Slot, self).__init__(*args, **kwargs)
-        
-        # Consistency checks
-        if not trustme: 
-             
-            # If both end and span are set, check consistency
-            if end and not span_derived:
-                obtained_end = kwargs['span'].get_end(start=start)
-                if self._end and (self._end != obtained_end):
-                    raise InputException("Slot: Error: inconsistent start/end with span (start={}, end={}, span={}), expected end based on span should be {}".format(start, self._end, kwargs['span'], kwargs['span'].get_end(start=start)))
-                         
-            # Check that start is before end
-            if span_derived:
-                for i in range(len(self.start.values)):
-                    if not self.start.values[i] < self.end.values[i]:
-                        raise InputException('{}: Start equal or after end on dimension #{}'.format(self.classname,i))
-                
-
+            
     # Handle end 
     @property
     def end(self):
-        if not self.start:
-            return None
-        
-        if self._end:
+        if hasattr(self, '_end'):
             return self._end
         else:
             # Cache it...
-            self._end = self.span.get_end(start=self.start)
+            self._end = self.span.get_end(center=self.anchor)
             return self._end
 
-    # The anchor is the start
+    # Handle start 
     @property
     def start(self):
+        if hasattr(self, '_start'):
+            return self._start
+        else:
+            # Cache it...
+            self._start= self.span.get_start(center=self.anchor)
+            return self._start
+
+    # Handle center 
+    @property
+    def center(self):
         return self.anchor
 
     # TODO: deltas are an interesting concept, which should be used in the span.
+    # Also, here you should just use span.value instad of re-computing them.
     @property
     def deltas(self):
         return [ (self.end.values[i] - self.start.values[i]) for i in range(len(self.start.values))]
@@ -640,7 +688,7 @@ class TimePoint(Point):
 
 
 class SurfacePoint(Point):
-    '''Point in a 2-dimesnioanl space, the surface.'''
+    '''Point in a 2-dimensional space, the surface.'''
       
     # Ensure labels=["x","y","z"]
     def __init__(self, *argv, **kwargs):
@@ -649,7 +697,7 @@ class SurfacePoint(Point):
 
 
 class SpacePoint(Point):
-    '''Point in a 3-dimesnioanl space, the space.'''
+    '''Point in a 3-dimensional space, the space.'''
       
     # Ensure labels=["x","y","z"]
     def __init__(self, *argv, **kwargs):
@@ -689,7 +737,7 @@ class TimeSlot(Slot):
 
         
     def __repr__(self):
-        # The representation works even if onlu the span is set. TODO: understand if this is what we want..
+        # The representation works even if only the span is set. TODO: understand if this is what we want..
         if self.start is not None:
             return '{}: from {} to {} with {}'.format(self.classname, self.start.dt, self.end.dt, self.span)
         else:

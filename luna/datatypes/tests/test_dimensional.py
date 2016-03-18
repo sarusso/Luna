@@ -109,6 +109,7 @@ class test_dimensional(unittest.TestCase):
         slot3 = Slot(start=start_Point1, end=end_Point2)
         slot4 = Slot(start=start_Point2, end=end_Point3)
         
+        
         # Test that the span has been correctly set:
         # TODO: Maybe compare with another Span object here? like SlotSpan([4,5])?
         self.assertEqual(slot1.span.value, [4,5])

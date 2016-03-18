@@ -1,6 +1,6 @@
 import unittest
 from luna.datatypes.composite import DataTimeSeries, DataTimePoint, DataTimeSlot, TimePoint, DataPoint
-from luna.datatypes.dimensional import Point, Slot
+from luna.datatypes.dimensional import Point, Slot, TimeSlot
 from luna.datatypes.auxiliary import Span, SlotSpan
 from luna.common.exceptions import InputException
 from luna.spacetime.time import TimeSlotSpan
@@ -13,20 +13,77 @@ class test_dataPoint(unittest.TestCase):
     
     def test_init(self):
         
-        dataPoint1 = DataPoint(label_t=63636, data='string_data')
-        dataPoint2 = DataPoint(label_t=63636, data=None)
-        dataPoint3 = DataPoint(label_t=63636, data=None, validity_region_span=SlotSpan(value=[60]))
+        with self.assertRaises(InputException):
+            _ = DataPoint(label_g=1000, data=None)
+         
+                    
+        dataPoint1 = DataPoint(label_g=1000, data='string_data1')
+        dataPoint2 = DataPoint(label_g=1000, data='string_data2')
+        dataPoint3 = DataPoint(label_g=1000, data='string_data3', validity_region_span=SlotSpan(value=[60]))
         
-        self.assertEqual(dataPoint1.data,'string_data')
-        self.assertEqual(dataPoint2.data,None)
-        self.assertEqual(dataPoint3.data,None)
+        self.assertEqual(dataPoint1.data,'string_data1')
+        self.assertEqual(dataPoint2.data,'string_data2')
+        self.assertEqual(dataPoint3.data,'string_data3')
         
-        # TODO: fix this
-        # print dataPoint1.validity_region 
-        # print dataPoint3.validity_region.start
+        # Test that you cannot access a validity region if you did not provide the validity_region_span
+        with self.assertRaises(AttributeError):
+            _ = dataPoint1.validity_region 
+        
+        # TODO: here we are indirectly testing the valitiy region, which is the slot
+        self.assertTrue(isinstance(dataPoint3.validity_region, Slot))
+        self.assertEqual(dataPoint3.validity_region.start, Point(label_g=970))
+        self.assertEqual(dataPoint3.validity_region.center, Point(label_g=1000))
+        self.assertEqual(dataPoint3.validity_region.anchor, Point(label_g=1000))
+        self.assertEqual(dataPoint3.validity_region.end, Point(label_g=1030))
         
         
-        #TimeSlot(span=TimeSlotSpan('1m'))
+        
+        
+class test_dataTimePoint(unittest.TestCase):
+
+    def setUp(self):
+        pass
+    
+    def test_init(self):
+        
+        # TODO: fix this, should work:
+        # DataTimePoint(label_t=1000, data='string_data')
+        
+        with self.assertRaises(InputException):
+            _ = DataTimePoint(t=1000, data=None)
+
+        with self.assertRaises(InputException):
+            _ = DataTimePoint(label_g=1000, data='string_data')     
+                    
+        dataTimePoint1 = DataTimePoint(t=1000, data='string_data1')
+        dataTimePoint2 = DataTimePoint(t=1000, data='string_data2')
+        dataTimePoint3 = DataTimePoint(t=1000, data='string_data3', validity_region_span=TimeSlotSpan('60s'))
+        
+        self.assertEqual(dataTimePoint1.data,'string_data1')
+        self.assertEqual(dataTimePoint2.data,'string_data2')
+        self.assertEqual(dataTimePoint3.data,'string_data3')
+        
+        # Test that you cannot access a validity region if you did not provide the validity_region_span
+        with self.assertRaises(AttributeError):
+            _ = dataTimePoint1.validity_region 
+        
+        # TODO: here we are indirectly testing the validity region, which is the slot
+        self.assertTrue(isinstance(dataTimePoint3.validity_region, TimeSlot))
+        self.assertEqual(dataTimePoint3.validity_region.start, TimePoint(t=970))
+        self.assertEqual(dataTimePoint3.validity_region.center, TimePoint(t=1000))
+        self.assertEqual(dataTimePoint3.validity_region.anchor, TimePoint(t=1000))
+        self.assertEqual(dataTimePoint3.validity_region.end, TimePoint(t=1030))
+
+
+        # The following test interpolability of the concept, i.e. a SlotSpan applied to DataTimePoint
+        # TODO: to make it work, implement the persistent trustme switch in DataPoint
+        #dataTimePoint4 = DataTimePoint(t=1000, data='string_data3', validity_region_span=SlotSpan(value=[60]), trustme=True)
+        #self.assertEqual(dataTimePoint4.data,'string_data3')
+        #self.assertTrue(isinstance(dataTimePoint4.validity_region, Slot))
+        #self.assertEqual(dataTimePoint4.validity_region.start, TimePoint(t=970))
+        #self.assertEqual(dataTimePoint4.validity_region.center, TimePoint(t=1000))
+        #self.assertEqual(dataTimePoint4.validity_region.anchor, TimePoint(t=1000))
+        #self.assertEqual(dataTimePoint4.validity_region.end, TimePoint(t=1030))
 
 
     def tearDown(self):

@@ -47,7 +47,7 @@ class DataPoint(Point):
 
         # Trustme switch        
         trustme = kwargs['trustme'] if 'trustme' in kwargs else False
-        
+
         # Args for the DataPoint
         self.data   = kwargs.pop('data', None)
         
@@ -64,6 +64,10 @@ class DataPoint(Point):
             
         # Consistency checks
         if not trustme:              
+            
+            # Check for presence of data
+            if self.data is None:
+                raise InputException('{}: Sorry, you need to specify some date, i got None'.format(self.classname)) 
             
             # Check valid validity_region_class
             if not issubclass(self.validity_region_class, Region):
@@ -89,9 +93,18 @@ class DataPoint(Point):
                     raise InputException('The the validity region _must_ be a symmetric Region, the one you provided it is not.')
 
 
-
+    # Representation (here we trick a bit if we have data with labels/value to obtain a more comfortable
+    # string representation by using self.data.labels[0] and self.data.values[0] 
     def __repr__(self):
-        return '{}, labels: {}, values: {}, first data label: {}, with value: {}'.format(self.__class__.__name__, self.labels, self.values, self.data.labels[0], self.data.values[0])
+        try:
+            if 'lables' in self.data:
+                return '{}, labels: {}, values: {}, first data label: {}, with value: {}'.format(self.__class__.__name__, self.labels, self.values, self.data.labels[0], self.data.values[0])
+            else:
+                return '{}, labels: {}, values: {}, data: {}'.format(self.__class__.__name__, self.labels, self.values, self.data)
+        except TypeError:
+                return '{}, labels: {}, values: {}, data: {}'.format(self.__class__.__name__, self.labels, self.values, self.data)
+                    
+    
     # TODO: check this (and export the isintsnace check in the base classes). Also, call the super.__eq__ and then add these checks!
 
 
@@ -100,13 +113,11 @@ class DataPoint(Point):
             return False
         return (self.values == other.values) and (self.labels == other.labels) and (self.data == other.data)       
 
-
     # Un-implment sum and subtraction as since now we carry data it just not make any sense
     def __sub__(self, other, trustme=False):
         raise NotImplemented('Subtracting two DataPoints does not make sense')
     def __sum__(self, other, trustme=False):
         raise NotImplemented('Subtracting two DataPoints does not make sense')
-
 
     @property
     def data_type(self):
@@ -116,10 +127,18 @@ class DataPoint(Point):
     @property
     def validity_region(self):
         
+        # Only symmetric regions are supported in the Generic DataPoint, so we 
         # Center on lower corner
-        return self.validity_region_class(start=self, span=self.validity_region_span)
+        #try:
+        if not hasattr(self, 'validity_region_span'):
+            raise AttributeError('{}; Sorry, you cannot ask me for mine validity_region if you did not provide me a validity_region_span'.format(self.classname))
 
-        
+        return self.validity_region_class(anchor=self.Point_part, span=self.validity_region_span)
+
+    # Point_part (or, cast to Point)
+    @property
+    def Point_part(self):
+        return Point(labels = self.labels, values=self.values, trustme=True)
 
 class DataSlot(Slot):
     '''A Slot with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image).
@@ -145,9 +164,18 @@ class DataSlot(Slot):
  
 # Composite
 class DataTimePoint(TimePoint, DataPoint):
-    '''A TimePoint with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+    '''A TimePoint with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+
+    validity_region_class = TimeSlot
+    
     def __repr__(self):
         return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
+
+    # Point_part (or, cast to TimePoint)
+    @property
+    def Point_part(self):
+        return TimePoint(labels = self.labels, values=self.values, tz=self.tz, trustme=True)
+
 
 # Decided to remove them to allow a more agnostic approach using the region and the span
 #     @property
@@ -168,7 +196,7 @@ class DataTimePoint(TimePoint, DataPoint):
 
 
 class DataTimeSlot(TimeSlot, DataSlot):
-    '''A TimeSlot with some data attached, wich can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
+    '''A TimeSlot with some data attached, which can be both dimensional (i.e. another point) or andimensional (i.e. an image)'''
     pass
 
 

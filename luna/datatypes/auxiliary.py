@@ -45,10 +45,10 @@ class Span(object):
 #             raise NotImplementedError('{}: You cannot use a Span without implementing it (self.value not found)'.format(self.__class__.__name__))
 
     # Get start/end
-    def get_start(self, end):
+    def get_start(self, end=None, center=None):
         raise NotImplementedError('You cannot use all Span functions without fully implementing it (get_start() not found)')
     
-    def get_end(self, start):
+    def get_end(self, start=None, center=None):
         raise NotImplementedError('You cannot use all Span functions without fully implementing it (get_end() not found)')
     
     # Equality 
@@ -113,6 +113,48 @@ class SlotSpan(Span):
         super(SlotSpan, self).__init__(*args, **kwargs)
 
 
+    # Get start/end/center
+    def get_start(self, end=None, center=None):
+        new_values = []
+        if end is not None:
+            for i in range(len(self.value)):
+                new_values.append(end.values[i] - self.value[i])
+            return end.__class__(labels=end.labels, values=new_values)        
+        elif center is not None:
+            for i in range(len(self.value)):
+                new_values.append(center.values[i] - self.value[i]/2.0)
+            return center.__class__(labels=center.labels, values=new_values)
+        else:
+            raise InputException('get_start: Got not end not center')        
+            
+    def get_end(self, start=None, center=None):
+        new_values = []
+        if start is not None:
+            for i in range(len(self.value)):
+                new_values.append(self.value[i] + start.values[i])
+            return start.__class__(labels=start.labels, values=new_values)           
+        elif center is not None:
+            for i in range(len(self.value)):
+                new_values.append(center.values[i] + self.value[i]/2.0) 
+            return center.__class__(labels=center.labels, values=new_values) 
+        else:
+            raise InputException('get_end: Got not end not center')
+
+    def get_center(self, start=None, end=None):
+        new_values = []
+        if start is not None:
+            for i in range(len(self.value)):
+                new_values.append(start.values[i] + self.value[i]/2.0)
+            return start.__class__(labels=start.labels, values=new_values)           
+        elif end is not None:
+            for i in range(len(self.value)):
+                new_values.append(end.values[i] - self.value[i]/2.0) 
+            return end.__class__(labels=end.labels, values=new_values) 
+        else:
+            raise InputException('get_center: Got not end not start')       
+        
+        
+        
     # Handle symmetry property
     @property
     def is_symmetric(self):   
