@@ -2,8 +2,8 @@ from luna.datatypes.dimensional import TimePoint, TimeSlot
 from luna.datatypes.composite import DataTimePoint, DataTimeSlot, PhysicalData, DataTimeSeries, DataPoint, DataSlot
 from luna.datatypes.auxiliary import PhysicalQuantity
 from luna.common.exceptions import ConsistencyException, ConfigurationException
-from luna.aggregators.utilities import compute_coverage
-import sys
+from luna.aggregators.utilities import compute_1D_coverage
+from luna.spacetime.time import s_from_dt
 
 #--------------------------
 #    Logger
@@ -39,7 +39,7 @@ class DataTimePointsAggregator(Aggregator):
     def __init__(self, Sensor):
         self.Sensor = Sensor
     
-    def aggregate(self, dataTimeSeries, start_dt, end_dt, timeSlotSpan, prev_dataTimePoint, next_dataTimePoint):
+    def aggregate(self, dataTimeSeries, start_dt, end_dt, timeSlotSpan):
 
         #-------------------
         # Sanity checks
@@ -57,28 +57,31 @@ class DataTimePointsAggregator(Aggregator):
         Slot_data_labels_to_generate = self.Sensor.Slots_data_labels
         Slot_data_labels             = []
         Slot_data_vaues              = []
-        Slot_coverage                = None
         Slot_physicalData            = None
+        
+        # Create start and end Points. TODO: is this not performant, also with the time zone? 
+        start_Point = TimePoint(t=s_from_dt(start_dt), tz=start_dt.tzinfo)
+        end_Point   = TimePoint(t=s_from_dt(end_dt), tz=start_dt.tzinfo)
 
         #-------------------
         # Compute coverage
         #-------------------
         logger.debug(' Now computing coverage...')
-        Slot_coverage = compute_coverage(dataTimeSeries, start_dt, end_dt, prev_dataTimePoint, next_dataTimePoint)
+        Slot_coverage = compute_1D_coverage(dataSeries  = dataTimeSeries,
+                                            start_Point = start_Point,
+                                            end_Point   = end_Point)
 
         #--------------------------------------------
         # Understand the labels to produce and to 
         # operate on according to the sensor type
         #--------------------------------------------
         
-
-
         for Slot_data_label_to_generate in Slot_data_labels_to_generate:
             
             handled      = False
             Generator    = None
             Operation    = None
-            operate_on  = None
+            operate_on   = None
             
             # Labels could already be PhysicalQuantiy objects
             if not isinstance(Slot_data_label_to_generate, PhysicalQuantity):
@@ -136,24 +139,20 @@ class DataTimePointsAggregator(Aggregator):
                 Slot_physicalData = self.Sensor.Points_type.data_type(labels = Slot_data_labels,
                                                                       values = Slot_data_vaues)
                 # Run the generator
-                result = Generator.generate(dataTimeSeries     = dataTimeSeries,
-                                            aggregated_data    = Slot_physicalData,
-                                            prev_dataTimePoint = prev_dataTimePoint,
-                                            next_dataTimePoint = next_dataTimePoint,
-                                            start_dt           = start_dt,
-                                            end_dt             = end_dt)
+                result = Generator.generate(dataSeries      = dataTimeSeries,
+                                            aggregated_data = Slot_physicalData,
+                                            start_Point     = start_Point,
+                                            end_Point       = end_Point)
 
             elif Operation:
                 
                 logger.debug('Running operation %s on %s to generate %s', Operation, operate_on, Slot_data_label_to_generate)
                 
                 # Run the operation
-                result = Operation.compute_on_Points(dataTimeSeries     = dataTimeSeries,
-                                                     operate_on         = operate_on,
-                                                     prev_dataTimePoint = prev_dataTimePoint,
-                                                     next_dataTimePoint = next_dataTimePoint,
-                                                     start_dt           = start_dt,
-                                                     end_dt             = end_dt)
+                result = Operation.compute_on_Points(dataSeries     = dataTimeSeries,
+                                                     operate_on     = operate_on,
+                                                     start_Point    = start_Point,
+                                                     end_Point      = end_Point)
             else:
                 raise ConsistencyException('No generator nor Operation?!')
             
@@ -170,8 +169,8 @@ class DataTimePointsAggregator(Aggregator):
         Slot_physicalData = self.Sensor.Points_type.data_type(labels = Slot_data_labels,
                                                               values = Slot_data_vaues)
         
-        dataTimeSlot = self.Sensor.Slots_type(start    = TimePoint(t = start_dt),
-                                              end      = TimePoint(t = end_dt),
+        dataTimeSlot = self.Sensor.Slots_type(start    = start_Point,
+                                              end      = end_Point,
                                               data     = Slot_physicalData,
                                               span     = timeSlotSpan,
                                               coverage = Slot_coverage)
@@ -299,12 +298,17 @@ class DataTimeSeriesAggregatorProcess(object):
             # The approach is to detect if the current slot is "outdated" and spin a new one if so.
 
             if dataTimePoint.dt > slot_end_dt:
-                # If the current slot is outdated, keep spinning new slots until the current
-                # data point falls in one of them.
                 
-                # Read the following "while" more as an "if" which can also lead to spin multiple
+                # If the current slot is outdated:
+                              
+                # 1) Add this last point to the dataTimeSeries:
+                filtered_dataTimeSeries.append(dataTimePoint)
+                 
+                #2) keep spinning new slots until the current data point falls in one of them.
+                
+                # NOTE: Read the following "while" more as an "if" which can also lead to spin multiple
                 # slot if there are empty slots between the one being closed and the dataTimePoint.dt.
-                # TODO: leave or remove the above if for code redability?
+                # TODO: leave or remove the above if for code readability?
                 
                 while slot_end_dt < dataTimePoint.dt:
                     
@@ -317,22 +321,17 @@ class DataTimeSeriesAggregatorProcess(object):
                         aggregator_results = self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
                                                                        start_dt           = slot_start_dt,
                                                                        end_dt             = slot_end_dt,
-                                                                       timeSlotSpan       = self.timeSlotSpan,
-                                                                       prev_dataTimePoint = prev_dataTimePoint,
-                                                                       next_dataTimePoint = dataTimePoint.dt)
+                                                                       timeSlotSpan       = self.timeSlotSpan)
                         # .. and append results 
                         self.results_dataTimeSeries.append(aggregator_results)
-                        
-                    # Save this datapoint as the previous data time point
-                    prev_dataTimePoint = dataTimePoint
-                    
+
                     # Create a new slot
                     slot_start_dt = slot_end_dt
                     slot_end_dt   = slot_start_dt + self.timeSlotSpan
                     
                     # Create a new filtered_dataTimeSeries as part of the 'create a new slot' procedure
                     filtered_dataTimeSeries = DataTimeSeries()
-                    
+
                     logger.info('SlotStream: Spawned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
                     
        
@@ -341,6 +340,7 @@ class DataTimeSeriesAggregatorProcess(object):
             # Time series filtering
             #----------------------------
             
+            # Append this point as it is the 'previous point' for the next slot
             filtered_dataTimeSeries.append(dataTimePoint)
             
 
@@ -362,9 +362,7 @@ class DataTimeSeriesAggregatorProcess(object):
             aggregator_results =  self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
                                                             start_dt           = slot_start_dt,
                                                             end_dt             = slot_end_dt,
-                                                            timeSlotSpan       = self.timeSlotSpan,
-                                                            prev_dataTimePoint = prev_dataTimePoint,
-                                                            next_dataTimePoint = dataTimePoint.dt)
+                                                            timeSlotSpan       = self.timeSlotSpan)
             
             # .. and append results 
             self.results_dataTimeSeries.append(aggregator_results)

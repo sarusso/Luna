@@ -153,6 +153,7 @@ def dt_from_s(timestamp_s, tz=None):
     return timestamp_dt
 
 # TOOD: dt_to_s?
+# TODO: t_from_dt?
 def s_from_dt(dt):
     '''Returns seconds with floating point for milliseconds/microseconds.'''
     if not (isinstance(dt, datetime.datetime)):

@@ -22,7 +22,7 @@ class QuantityGenerator(object):
     
     # Generator code
     @classmethod
-    def generate(dataTimeSeries, aggregated_data, prev_dataTimePoint, next_dataTimePoint, start_dt, end_dt):
+    def generate(dataSeries, aggregated_data, start_Point, end_Point):
         raise NotImplementedError()
     
     # Data type
@@ -44,7 +44,7 @@ class PhysicalQuantityGenerator(object):
     You can also depend on already aggregated quantities (i.e. power-l1_W_AVG, power-l2_W_AVG, power-l3_W_AVG)
     to provide another aggregated quantity (i.e. power_W_AVG), even if depending on the use case it might be
     better or necessary to perform the operation point by point (So generating power_W from power-l1_W, power-l2_W and
-    power-l3_W and then applting power_W_AVG).
+    power-l3_W and then applying power_W_AVG).
      '''
     
     # Depends
@@ -61,7 +61,7 @@ class PhysicalQuantityGenerator(object):
     
     # Generator code
     @classmethod
-    def generate(dataTimeSeries, aggregated_data, prev_dataTimePoint, next_dataTimePoint, start_dt, end_dt):
+    def generate(dataSeries, aggregated_data, start_Point, end_Point):
         raise NotImplementedError()
     
     # Data type
@@ -83,7 +83,7 @@ class energy_kWh_TOT(PhysicalQuantityGenerator):
     
     # Generator code
     @staticmethod
-    def generate(dataTimeSeries, aggregated_data, prev_dataTimePoint, next_dataTimePoint, start_dt, end_dt):
+    def generate(dataSeries, aggregated_data, start_Point, end_Point):
         return -9
 
 
@@ -102,7 +102,7 @@ class power_W(object):
     
     # Generator code
     @classmethod
-    def generate(dataTimeSeries, aggregated_data, prev_dataTimePoint, next_dataTimePoint, start_dt, end_dt):
+    def generate(dataSeries, aggregated_data, start_Point, end_Point):
         raise NotImplementedError()
 
 

@@ -3,37 +3,37 @@
 class Operation(object):
     
     @staticmethod
-    def compute_on_Points(dataTimeSeries, operate_on, prev_dataTimePoint, next_dataTimePoint, start_dt, end_dt):
+    def compute_on_Points(dataSeries, operate_on, start_Point, end_Point):
         raise NotImplementedError()
     
     @staticmethod
-    def compute_on_Slots(dataTimeSeries, operate_on):
+    def compute_on_Slots(dataSeries, operate_on, start_Point, end_Point):
         raise NotImplementedError()
 
 
 class AVG(Operation):
     
     @staticmethod
-    def compute_on_Points(dataTimeSeries, operate_on, prev_dataTimePoint, next_dataTimePoint, start_dt, end_dt):
+    def compute_on_Points(dataSeries, operate_on, start_Point, end_Point):
         sum = 0.0
         print 
-        for item in dataTimeSeries:
+        for item in dataSeries:
             # TODO: weight the average accoridng to the time interval between points.
             # Also, operations should be aware of prev and next datapoints.
             sum += item.data[operate_on] 
-        return sum/len(dataTimeSeries)
+        return sum/len(dataSeries)
 
     @staticmethod
-    def compute_on_Slots(dataTimeSeries, operate_on):
+    def compute_on_Slots(dataSeries, operate_on, start_Point, end_Point):
         return None
 
 
 class MIN(Operation):
 
     @staticmethod
-    def compute_on_Points(dataTimeSeries, operate_on, prev_dataTimePoint, next_dataTimePoint, start_dt, end_dt):
+    def compute_on_Points(dataSeries, operate_on, start_Point, end_Point):
         min = None
-        for dataTimePoint in dataTimeSeries:
+        for dataTimePoint in dataSeries:
             if min is None:
                 min = dataTimePoint.data[operate_on]
             elif dataTimePoint.data[operate_on] < min:
@@ -43,16 +43,16 @@ class MIN(Operation):
         return min
 
     @staticmethod
-    def compute_on_Slots(dataTimeSeries, operate_on):
+    def compute_on_Slots(dataSeries, operate_on, start_Point, end_Point):
         return None
 
 
 class MAX(Operation):
     
     @staticmethod
-    def compute_on_Points(dataTimeSeries, operate_on, prev_dataTimePoint, next_dataTimePoint, start_dt, end_dt):
+    def compute_on_Points(dataSeries, operate_on, start_Point, end_Point):
         max = None
-        for item in dataTimeSeries:
+        for item in dataSeries:
             if max is None:
                 max = item.data[operate_on]
             elif item.data[operate_on] > max:
@@ -62,7 +62,7 @@ class MAX(Operation):
         return max
 
     @staticmethod
-    def compute_on_Slots(dataTimeSeries, operate_on):
+    def compute_on_Slots(dataSeries, operate_on, start_Point, end_Point):
         return None
 
 

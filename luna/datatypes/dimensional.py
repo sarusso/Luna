@@ -324,7 +324,7 @@ class Point(Coordinates, Space):
     
     # Sum and subtraction are defined in the classic, vectorial way.
     
-    def __sum__(self, other, trustme=False):
+    def __add__(self, other, trustme=False):
         # Check compatibility
         if not trustme:
             self.is_compatible_with(other, raises=True) 
@@ -723,6 +723,9 @@ class TimeSlot(Slot):
               
         # Check for correct types. Note that Slot will take care of checking that at least two of the
         # start-end-span are set.
+        if 'anchor' in kwargs and not isinstance(kwargs['anchor'], TimePoint):
+            raise InputException('{}: provided anchor is not of type TimePoint, got '.format(self.classname), type(kwargs['anchor']))
+
         if 'start' in kwargs and not isinstance(kwargs['start'], TimePoint):
             raise InputException('{}: provided start is not of type TimePoint, got '.format(self.classname), type(kwargs['start']))
 
@@ -739,9 +742,9 @@ class TimeSlot(Slot):
     def __repr__(self):
         # The representation works even if only the span is set. TODO: understand if this is what we want..
         if self.start is not None:
-            return '{}: from {} to {} with {}'.format(self.classname, self.start.dt, self.end.dt, self.span)
+            return '{}: from {} to {} with span of {} and coverage of {}'.format(self.classname, self.start.dt, self.end.dt, self.span, self.coverage)
         else:
-            return '{}: with {}'.format(self.classname, self.span)
+            return '{}: with {} and coverage of {}'.format(self.classname, self.span, self.coverage)
  
     @property
     def tz(self):

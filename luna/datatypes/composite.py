@@ -282,6 +282,12 @@ class PhysicalDataSlot(DataSlot):
 
 # Composite..
 class PhysicalDataTimePoint(TimePoint, PhysicalDataPoint):
+    
+    # TODO: Fix me! having to re-define the point part function every time is not correct! 
+    @property
+    def Point_part(self):
+        return TimePoint(labels = self.labels, values=self.values, trustme=True)
+    
     pass
 
 class PhysicalDataTimeSlot(TimeSlot, PhysicalDataSlot):
