@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 #--------------------------------
 
 # Base class to handle all dimensional (labels/values) object.
-# Pleas enot that this is just a "support" class.
+# Please not that this is just a "support" class.
 class Base(object):
 
     def __init__(self, **kwargs):
@@ -84,6 +84,16 @@ class Base(object):
     # Un-equality
     def __ne__(self, other):
         return (not self.__eq__(other))
+
+    # ..and Un-implement operators which acts on the memory address as are meaningless in this context
+    def __gt__(self, other):
+      raise NotImplementedError()
+    def __ge__(self, other):
+      raise NotImplementedError()
+    def __lt__(self, other):
+      raise NotImplementedError()
+    def __le__(self, other):
+      raise NotImplementedError()
             
     # Compatibility check for labels
     def _labels_are_compatible_with(self, other, raises=False):
@@ -117,7 +127,11 @@ class Base(object):
     # Compatibility check 
     def is_compatible_with(self, other, raises=False):
         '''Check compatibility with 'dimensional' objects (Spaces, Coordintaes, Regions, Points, Slots...).'''
-        
+        if not type(self) is type(other):
+            if raises:
+                raise InputException('Got incompatible type: I am "{}" and I am not compatible with "{}"'.format(self.classname, other.__class__.__name__))
+            else:
+                return False
         if self.has_labels and self.has_values:
             return (self._labels_are_compatible_with(other, raises=raises) and self._values_are_compatible_with(other, raises=raises))  
         elif self.has_labels:
@@ -234,7 +248,7 @@ class Space(Base):
         try:
             return self._labels
         except AttributeError:
-            raise ConsistencyException('{}: No _lables (yet) defined, you hit a bug.'.format(self.__class__.__name__))
+            raise ConsistencyException('{}: No _labels (yet) defined, you hit a bug.'.format(self.__class__.__name__))
 
 class Coordinates(Base):
     '''A coordinates list. If contextualized in a Space with labels, each coordinate will also have its own label and it will be accessible by label.
@@ -342,7 +356,31 @@ class Point(Coordinates, Space):
             new_values.append(self.values[i] - other.values[i]) 
         return self.__class__(labels=self.labels, values=new_values)        
 
+    def __gt__(self, other):
+        if len(self.labels)>1:
+            raise NotImplementedError('Sorry, <, >, <= and >= operators for the Point are defined in only 1 dimension for now.')
+        else:
+            return other.values[0] < self.values[0]
+          
+    def __ge__(self, other):
+        if len(self.labels)>1:
+            raise NotImplementedError('Sorry, <, >, <= and >= operators for the Point are defined in only 1 dimension for now.')
+        else:
+            return not self.values[0] < other.values[0]
+        
+    def __lt__(self, other):
+        if len(self.labels)>1:
+            raise NotImplementedError('Sorry, <, >, <= and >= operators for the Point are defined in only 1 dimension for now.')
+        else:
+            return self.values[0] < other.values[0]
+        
+    def __le__(self, other):
+        if len(self.labels)>1:
+            raise NotImplementedError('Sorry, <, >, <= and >= operators for the Point are defined in only 1 dimension for now.')
+        else:
+            return not self.values[0] > other.values[0]
 
+    
 class Region(Space):
     '''A Region in a n-dimensional space. It can be both floating or anchored. Shape and Span are mandatory. Anchor is optional'''
 
@@ -667,9 +705,6 @@ class TimePoint(Point):
     @property
     def t(self):
         return self.values[0]
-
-
-
 
     def __repr__(self):
         return '{} ({})'.format(self.classname, self.dt)
