@@ -112,13 +112,21 @@ class test_dataTimePoint_DataTimeSeries(unittest.TestCase):
 
     def test_init(self):
         pass
-     
+    
     def test_equality(self):
         self.assertEqual(self.ref_dataTimeSeries_1 , self.ref_dataTimeSeries_2)
 
     def test_iterator(self):
         for i, dataTimePoint in enumerate(self.ref_dataTimeSeries_1):
             self.assertEqual(dataTimePoint.t, 1000000000 + (i*60))  
+    
+    def test_unroll(self):
+        # Test unroll
+        for item in self.ref_dataTimeSeries_1:
+            last_item1 = item
+        for item in self.ref_dataTimeSeries_1:
+            last_item2 = item
+        self.assertEqual(last_item1,last_item2)
               
     def test_index(self):
         
