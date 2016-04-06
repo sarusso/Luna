@@ -23,15 +23,15 @@ class Sensor(object):
         
     @property
     def type_ID(self):
-        raise NotImplementedError
+        raise NotImplementedError('{}: type_ID not implemented'.format(self.__class__.__name__))
 
     @property
     def Points_type(self):
-        raise NotImplementedError
+        raise NotImplementedError('{}: Points_type not implemented'.format(self.__class__.__name__))
 
     @property
     def Slots_type(self):
-        raise NotImplementedError    
+        raise NotImplementedError('{}: Slots_type not implemented'.format(self.__class__.__name__))
     
 
 class TimeSensor(Sensor):
@@ -55,11 +55,11 @@ class DataTimeSensor(TimeSensor):
 
     @property
     def Points_data_labels(self):
-        raise NotImplementedError
+        raise NotImplementedError('{}: Points_data_labels not implemented'.format(self.__class__.__name__))
 
     @property
     def Slots_data_labels(self):
-        raise NotImplementedError
+        raise NotImplementedError('{}: Slots_data_labels not implemented'.format(self.__class__.__name__))
 
     # The validity interval value has also to be set. It is per-sensor,
     # as it is assumed that every physical sensor behaves in the same way.
@@ -71,7 +71,7 @@ class DataTimeSensor(TimeSensor):
     
     @property
     def Points_validity_interval(self):
-        raise NotImplementedError  
+        raise NotImplementedError('{}: Points_validity_interval not implemented'.format(self.__class__.__name__))
     
 class PhysicalDataTimeSensor(DataTimeSensor):
     '''A time-based data sensor is a sensor that produces time-based physical data.'''
