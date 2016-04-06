@@ -190,19 +190,20 @@ class TimeSlotSpan(SlotSpan):
     def is_symmetric(self):
         return True
 
-    def __init__(self, string=None, years=0, weeks=0, months=0, days=0, hours=0, minutes=0, seconds=0, microseconds=0, start=None, end=None):
- 
-        # String OR explicit OR start/end
-        if string and (years or months or days or hours or minutes or seconds or microseconds) and ((start is not None) or (end is not None)):
-            raise InputException('Choose between string init and explicit setting of years,months, days, hours etc.')
+    def __init__(self, string=None, years=0, weeks=0, months=0, days=0, hours=0, minutes=0, seconds=0, microseconds=0, start=None, end=None, trustme=False):
 
-        # Check that both start and end are set if one is set
-        if start and not end:
-            raise InputException('You provided the start but not the end')
+        if not trustme:
 
-        if end and not start:
-            raise InputException('You provided the end but not the start')
-               
+            # String OR explicit OR start/end
+            if string and (years or months or days or hours or minutes or seconds or microseconds) and ((start is not None) or (end is not None)):
+                raise InputException('Choose between string init and explicit setting of years,months, days, hours etc.')
+    
+            # Check that both start and end are set if one is set
+            if start and not end:
+                raise InputException('You provided the start but not the end')
+            if end and not start:
+                raise InputException('You provided the end but not the start')
+                   
         # Set the TimeSlotSpan in seconds
         if start and end:
             seconds = s_from_dt((end-start).dt)
@@ -231,6 +232,12 @@ class TimeSlotSpan(SlotSpan):
                     raise InputException('Error, got unknow interval ({})'.format(string))
 
                 setattr(self, self.mapping_table[groups[1]], int(groups[0]))
+
+        if not trustme:  
+                     
+            # If nothing set, raise error
+            if not self.years and not self.weeks and not self.months and not self.days and not self.hours and not self.minutes and not self.seconds and not self.microseconds:
+                raise InputException('Detected zero-length TimeSlotSpan!')
  
         # We do not call the parent Init. The reson is because the The value of the span should be in seconds,
         # but his value is not always defined (days-weeks-months-years), therefore we re-implement the value
