@@ -141,50 +141,53 @@ class Base(object):
         else:
             raise ConsistencyException('I have no values and no labels, my compatibility is not defined.')        
 
-    # Shortcut
+    # Class name shortcut
     @property
     def classname(self):
         return self.__class__.__name__
+
 
     #-----------------------
     # Content management
     #-----------------------
 
-    # Valuesdict
-    @property 
-    def valuesdict(self):
-        if not self.has_labels or not self.has_values:
-            raise AttributeError('Cannot access valuesdict since we do not have both labels and values')
-            
-        class ValuesList(list):  
-            def set_linked(self, linked):
-                self.linked = linked
-                return self
-            def __getattr__(self, attr):
-                try: 
-                    return self.linked.values[self.linked.labels.index(attr)]    
-                except ValueError:
-                    raise ValueError('{} has no label named "{}"'.format(self.linked.__class__.__name__, attr))
-            # TODO: be able to access values['x']
-
-        return ValuesList(self._values).set_linked(self)
-
-
     # Content object
     @property
     def content(self):
         if not self.has_labels or not self.has_values:
-            raise AttributeError('Cannot access content since we do not have both labels and values')
-        
+            raise AttributeError('Cannot access content since labels and values are not both set')
+        # Define content support object
         class Content(object):    
+            
             def __init__(self, linked):
                 self.linked = linked
+            
             def __getattr__(self, attr):
                 return self.linked.values[self.linked.labels.index(attr)]
+            
+            def __getitem__(self, item):
+                return self.linked.__getitem__(item)
+            
+            def __iter__(self):
+                self.current = -1
+                return self
+            
+            def __next__(self):
+                if self.current > len(self.linked.labels)-2:
+                    raise StopIteration
+                else:
+                    self.current += 1
+                    return {self.linked.labels[self.current]: self.linked.values[self.current]}
+            
+            def next(self): # Python 2.x
+                return self.__next__()
+            
+            def __repr__(self):
+                return str({label:self.linked.valueforlabel(label) for label in self.linked.labels})  
         
         return Content(linked=self)
     
-    # Get item TODO: (Maybe not efficient? why was not implemented from the beginning?)
+    # Get item
     def __getitem__(self, label):
         if not self.has_labels or not self.has_values:
             raise AttributeError('Cannot access content since we do not have both labels and values')
@@ -192,17 +195,8 @@ class Base(object):
             return self._values[self._labels.index(label)]
         except ValueError:
             raise ValueError('{} has no label named "{}"'.format(self.classname, label))
-        
 
-    # Values by label
-    @property
-    def valuesbylabel(self):
-        if not self.has_labels or not self.has_values:
-            raise AttributeError('Cannot access valuesbylabel since we do not have both labels and values')
-        return self.valuesdict
-
-
-    # Values for label
+    # Value for label
     def valueforlabel(self, label):
         if not self.has_labels or not self.has_values:
             raise AttributeError('Cannot access valueforlabel since we do not have both labels and values')

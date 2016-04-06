@@ -62,32 +62,38 @@ class test_dimensional(unittest.TestCase):
         # Test error if unhandledl kwarg is given:
         with self.assertRaises(InputException):
             _ = Point(labels=["a","c"], values=[1,2], unhandledarg=65.7) 
- 
-        # Test accessing values by index
-        self.assertEqual(point1.valuesdict.a,1)
- 
-        with self.assertRaises(ValueError):
-            _ = point1.valuesdict.g
-
+  
         # Test __getitem__
         self.assertEqual(point1['a'], 1)
         
         with self.assertRaises(ValueError):
             _ = point1['g']
 
-        # Test valueforlabel
+        # Test valueforlabel()
         self.assertEqual(point1.valueforlabel('a'),1)
         with self.assertRaises(ValueError):
             point1.valueforlabel('g')
   
-        # TODO: Test Content object? 
-
         # Test content:
-        point7 = Point(label_a=2,label_b=5,label_c=8)
-        self.assertEqual(point7.content.a,2)
-        self.assertEqual(point7.content.b,5)
-        self.assertEqual(point7.content.c,8)
-
+        point7 = Point(label_a=2, label_b=5, label_c=8)
+        self.assertEqual(point7.content.a, 2)
+        self.assertEqual(point7.content.b, 5)
+        self.assertEqual(point7.content.c, 8)
+        self.assertEqual(str(point7.content), str({'a': 2, 'c': 8, 'b': 5}))
+        self.assertEqual(point7.content.a, 2)
+        self.assertEqual(point7.content.b, 5)
+        self.assertEqual(point7.content.c, 8)
+        
+        tot = 0
+        for item in point7.content:
+            if tot == 0:
+                self.assertEqual(item, {'a': 2})
+            if tot == 1:
+                self.assertEqual(item, {'b': 5})
+            if tot == 2:
+                self.assertEqual(item, {'c': 8})
+            tot +=1                
+        self.assertEqual(tot,3)
 
         # Test sum and subtraction:
         point8 = Point(label_a=12,label_b=5,label_c=3)
