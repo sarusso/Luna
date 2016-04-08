@@ -47,6 +47,10 @@ def dt(*args, **kwargs):
 
     tzinfo  = kwargs.pop('tzinfo', None)
     trustme = kwargs.pop('trustme', None)
+    
+    if kwargs:
+        raise InputException('Unhandled arg: "{}".'.format(kwargs))
+        
 
     if (tzinfo is None):
         # Force UTC if None

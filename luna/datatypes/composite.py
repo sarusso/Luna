@@ -1,5 +1,7 @@
 
 from datetime import datetime
+from copy import copy, deepcopy
+
 from luna.common.exceptions import InputException, ConsistencyException
 from luna.spacetime.time import dt_from_s
 from luna.datatypes.adimensional import *
@@ -129,8 +131,15 @@ class DataPoint(Point):
         
         # Only symmetric regions are supported in the Generic DataPoint, so we 
         # Center on lower corner
-        #try:
+
         if not hasattr(self, 'validity_region_span'):
+            
+            # Approach A) Create empty Span
+            #self.validity_region_span = Span(value=0)
+            #self.validity_region_span.get_start = self._get_Point_part
+            #self.validity_region_span.get_end   = self._get_Point_part
+            
+            # Approach B): Raise 
             raise AttributeError('{}; Sorry, you cannot ask me for mine validity_region if you did not provide me a validity_region_span'.format(self.classname))
 
         return self.validity_region_class(anchor=self.Point_part, span=self.validity_region_span)
@@ -139,6 +148,23 @@ class DataPoint(Point):
     @property
     def Point_part(self):
         return Point(labels = self.labels, values=self.values, trustme=True)
+
+    def _get_Point_part(self, *args, **kwargs):
+        return self.Point_part
+
+    def filter_data_labels(self, labels):
+        
+        # TODO: use filtering (views), not copy
+        filtered_dataPoint = deepcopy(self)
+        
+        # Restrict data and labels
+        # TODO: might not work if PhysicalQuantites are used as labels 
+        filtered_dataPoint.data._values = [self.data.values[self.data.labels.index(label)] for label in labels]
+        filtered_dataPoint.data._labels = labels
+        
+        return filtered_dataPoint
+
+
 
 class DataSlot(Slot):
     '''A Slot with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image).
@@ -334,6 +360,8 @@ class DataTimeSeries(TimeSeries):
     In our logic is therfore an ordered set of DataTimePoints or DataTimeSlots (not DataTimeRegions as we are in 1D and only
     regions with a "slotty" shape make sense, so DataTimeSlots).'''
 
+    _time_filter_enabled = True
+
     @property
     def data_type(self):
 
@@ -366,8 +394,8 @@ class DataTimeSeries(TimeSeries):
     def __len__(self):
         return len(self._data)
 
-    def __init__(self, tz=None, index=False):
-        
+    def __init__(self, tz=None, index=False, wrapped=None, filter_labels=None, filter_from_dt=None, filter_to_dt=None):
+
         # Initialize data container
         self._data = []
         
@@ -380,10 +408,27 @@ class DataTimeSeries(TimeSeries):
         else:
             self.index = None
             
-        # initialize filtering
-        self.filter_labels  = None
-        self.filter_from_dt = None
-        self.filter_to_dt   = None 
+        # Handle wrapper and filtering 
+        self.wrapped        = wrapped
+        self.filter_labels  = filter_labels
+        self.filter_from_dt = filter_from_dt
+        self.filter_to_dt   = filter_to_dt
+        
+    def __getattribute__(self, attr):
+        # Handle wrap of myself 
+        wrapped = object.__getattribute__(self, 'wrapped')
+        # Hard Debug: logger.debug('Getting attr %s, wrapped=%s',attr, wrapped)
+        iswrapper = (True if wrapped else False)
+        if wrapped:
+            # Wrapped object, filters and iterator status are stored in myself, not in the wrapped object
+            if attr in ['wrapped', 'filter_labels', 'filter_from_dt', 'filter_to_dt', '__iter__', '__next__', 'wrapper_current']:
+                # Hard Debug: logger.debug('USING NOT WRAPPED %s', attr) 
+                return object.__getattribute__(self, attr)
+            else:
+                # Proxy to the wrapped object
+                return getattr(wrapped, attr)
+        else:
+            return object.__getattribute__(self, attr)
    
     @property
     def tz(self):
@@ -450,23 +495,47 @@ class DataTimeSeries(TimeSeries):
             self.index[timeData_Point_or_Slot.t] = len(self._data)
           
         self._data.append(timeData_Point_or_Slot)
-              
-    # Iterator
+       
+    #--------------       
+    #  Iterator
+    #--------------
     def __iter__(self):
-        self.current = -1
+
+        # Wrapper logic
+        if self.wrapped:
+            self.wrapper_current= -1
+        else:
+            self.current = -1
+        
         return self
 
-    def __next__(self):
-        if self.current > len(self._data)-2:
+    def __next__(self, filter_from_dt=None, filter_to_dt=None, filter_labels=None, current=None):
+  
+        # Wrapper logic
+        if self.wrapped:
+            self.wrapper_current += 1
+            return self.wrapped.__next__(filter_from_dt=self.filter_from_dt, filter_to_dt=self.filter_to_dt, filter_labels=self.filter_labels, current=self.wrapper_current-1)
+        
+        # Use current of our wrapper
+        current =  current if current is not None else self.current
+        
+        # Iterator logic
+        if current > len(self._data)-2:
             raise StopIteration
         else:
-            self.current += 1
-            if self.filter_labels is None and self.filter_from_dt is None and self.filter_to_dt is None:  
-                return self._data[self.current]
-            else:
-                if self.filter_from_dt or self.filter_to_dt:
-                    raise NotImplementedError('Filtering on is not yet implemented')
+            if not self.wrapped:
+                self.current += 1
 
+            if filter_labels is not None or filter_from_dt is not None and self.filter_to_dt is not None:
+                
+                # Handle filtering
+                if filter_labels:
+                    return self._data[current+1].filter_data_labels(labels=filter_labels)     
+                else:
+                    raise NotImplementedError('Filtering on is not yet implemented in this method')
+            
+            else:
+                return self._data[current+1]
 
     # Python 2.x
     def next(self):
@@ -567,47 +636,42 @@ class DataTimeSeries(TimeSeries):
     # Filtering
     #----------------
 
-    def filter_on(self, from_dt=None, to_dt=None, labels=None):
-        logger.info('Activating filtering for dataTimeSeries')
-        if labels:
-            self.filter_labels  = labels
-        if from_dt:
-            self.filter_from_dt = from_dt
-        if to_dt:
-            self.filter_to_dt   = to_dt
-        # Raise Exception. not yet implemented..
-        raise NotImplementedError('Filtering on is not yet implemented')
-
-    def filter_off(self):
-        logger.info('Activating filtering for dataTimeSeries')
-        self.labels  = None
-        self.filter_from_dt = None
-        self.filter_to_dt   = None
-        # Raise Exception. not yet implemented..
-        raise NotImplementedError('Filtering is not yet implemented')
-    
     # TODO: name it cut/slice/subset?
-    def filter(self, from_dt, to_dt):
+    def filter(self, from_dt=None, to_dt=None, labels=None, trustme=False):
         
-        #--------------------------------------------
-        # TODO: disable if streaming? Cannot work..
-        #--------------------------------------------
+        # Sanity checks..
+        if not trustme:
+            if from_dt is None and to_dt is None and labels is None:
+                raise InputException('At least one argument of the three is required: from_dt, to_dt, labels')
+            
+            if (from_dt is not None or to_dt is not None) and labels is not None:
+                raise InputException('Sorry, you cannot filter both on time and on labels')
+            
+            if (from_dt is not None or to_dt is not None) and not self._time_filter_enabled:
+                raise InputException('Sorry, on this kind of DataTimeSeries filtering in time is not supported')
         
-        # Initialize new TimeSeries to return as container
-        filtered_timeSereies = DataTimeSeries(tz=self.tz, index=self.index)
-        
-        logger.debug('Filtering time series from %s to %s', from_dt, to_dt)
-        for item in self:
-            if isinstance(item, TimePoint):
-                if item.dt >= from_dt and item.dt < to_dt:
-                    filtered_timeSereies.append(item)   
-            elif isinstance(item, TimeSlot):
-                if item.start.dt >= from_dt and item.end.dt <= to_dt:
-                    filtered_timeSereies.append(item)          
-            else:
-                raise ConsistencyException('TimeSereie with neither TimePoint or TimeSlots?! It has {}'.format(type(item)))            
-        
-        return filtered_timeSereies
+        if (from_dt is not None or to_dt is not None):
+            #--------------------------------------------
+            # TODO: disable if streaming? Cannot work..
+            #--------------------------------------------
+            
+            # Filter on time: initialize new DataTimeSeries to return as container
+            filtered_timeSereies = DataTimeSeries(tz=self.tz, index=self.index)
+            
+            logger.debug('Filtering time series from %s to %s', from_dt, to_dt)
+            for item in self:
+                if isinstance(item, TimePoint):
+                    if item.dt >= from_dt and item.dt < to_dt:
+                        filtered_timeSereies.append(item)   
+                elif isinstance(item, TimeSlot):
+                    if item.start.dt >= from_dt and item.end.dt <= to_dt:
+                        filtered_timeSereies.append(item)          
+                else:
+                    raise ConsistencyException('TimeSereie with neither TimePoint or TimeSlots?! It has {}'.format(type(item)))
+            return filtered_timeSereies
+                   
+        else:
+            return self.__class__(wrapped=self, filter_labels=labels)
 
 
 #class PhysicalDataTimeSeries(object):
@@ -639,6 +703,8 @@ class StreamingDataTimeSeries(DataTimeSeries):
     '''In the streaming DataTimeSeries, the iterator is rewritten to use a DataTimeStream. Not-streaming operations
     (like accessing the index) are supported, but they triggers the complete navigation of the DataTimeStream which
     can be very large to be loaded in RAM, or just never ending in case of a real time stream'''
+    
+    _time_filter_enabled = False
     
     # Init to save the DataTimeStream   
     def __init__(self, *args, **kwargs):

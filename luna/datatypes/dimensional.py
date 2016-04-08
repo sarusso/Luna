@@ -326,6 +326,12 @@ class Coordinates(Base):
     def values(self):
         return self._values
 
+    # Value property
+    @property
+    def value(self):
+        if len(self._values) > 1:
+            raise AttributeError('Sorry, the "value" property is implemented for 1-D Points only (this is a {}-D Point).'.format(len(self._values)))
+        return self._values[0]
 
 class Point(Coordinates, Space):
     '''A point in a n-dimensional space with some coordinates'''
