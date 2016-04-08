@@ -23,6 +23,12 @@ LUNA_HOME = os.path.join(USER_HOME,LUNA_DIR)
 def trunc(invalue, digits):
     return int(invalue*math.pow(10,digits))/math.pow(10,digits);
     
+def fix_label_from_sqlite(label):
+    return label.replace('__','-')
+
+def fix_label_to_sqlite(label):
+    return label.replace('-','__').lower()
+    
 
 
 #------------------------------------------------#
@@ -206,7 +212,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
             
     def initialize_structure_for_DataTimePoints(self, cur, sensor):
         # Create the table
-        labels_list = ' REAL, '.join(sensor.Points_data_labels) + ' REAL, '
+        labels_list = ' REAL, '.join([fix_label_to_sqlite(label) for label in sensor.Points_data_labels]) + ' REAL, '
         cur.execute("CREATE TABLE {}_DataTimePoints(ts INTEGER NOT NULL, sid TEXT NOT NULL, {} PRIMARY KEY (ts, sid));".format(sensor.__class__.__name__, labels_list))              
 
 
@@ -227,7 +233,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
             
     def initialize_structure_for_DataTimeSlots(self, cur, sensor):
         # Create the table
-        labels_list = ' REAL, '.join(sensor.Slots_data_labels) + ' REAL, '
+        labels_list = ' REAL, '.join([fix_label_to_sqlite(label) for label in sensor.Slots_data_labels]) + ' REAL, '
         query = "CREATE TABLE {}_DataTimeSlots(start_ts INTEGER NOT NULL, end_ts INTEGER NOT NULL, sid TEXT NOT NULL, span TEXT NOT NULL, {} coverage REAL, PRIMARY KEY (start_ts, end_ts, sid, span));".format(sensor.__class__.__name__, labels_list)
         logger.debug('Query: %s', query)
         cur.execute(query)              
@@ -291,7 +297,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
                         raise StorageException('{}: Sorry, the DataTimePoints structure for the sensor {} is not found and I am not allowed to create it (right_to_initialize is set to "{}")'.format(self.__class__.__name__, sensor, right_to_initialize))
                     storage_structure_checked = True
                 
-                labels_list = ', '.join(sensor.Points_data_labels)
+                labels_list = ', '.join([fix_label_to_sqlite(label) for label in sensor.Points_data_labels])
                 values_list = ', '.join([str(value) for value in item.data.values])
                 logger.debug("Inserting point with t=%s, labels=%s, values=%s", item.t, labels_list, values_list)
                 cur.execute("INSERT OR REPLACE INTO {}_DataTimePoints(ts, sid, {}) VALUES ({},'{}',{})".format(sensor.__class__.__name__, labels_list, item.t, sensor.id,  values_list))       
@@ -304,7 +310,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
                         raise StorageException('{}: Sorry, the DataTimeSlots structure for the sensor {} is not found and I am not allowed to create it (right_to_initialize is set to "{}")'.format(self.__class__.__name__, sensor, right_to_initialize))
                     storage_structure_checked = True
                 
-                labels_list = ', '.join(sensor.Slots_data_labels)
+                labels_list = ', '.join([fix_label_to_sqlite(label) for label in sensor.Slots_data_labels])
                 values_list = ', '.join([str(value) for value in item.data.values])
                 logger.debug("Inserting slot with start=%s, end=%s, lables=%s, values=%s", item.start, item.end, labels_list, values_list)
                 if item.coverage is None:
@@ -361,12 +367,13 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
         labels = []
         for i, item in enumerate(cur.execute('PRAGMA table_info({}_DataTimePoints);'.format(sensor.__class__.__name__))):
             if i>1:
-                labels.append(item[1])
+                labels.append(fix_label_from_sqlite(item[1]))
         
-        # If the column names does not match the sensor data:
-        if labels != sensor.Points_data_labels:
-            raise ConsistencyException('Sensor labels and database labels does not match: {} - {}'.format(sensor.Points_data_labels, labels))
-     
+        # Check that we have every required labels in the storage        
+        for label in sensor.Points_data_labels:
+            if label.lower() not in labels:
+                raise ConsistencyException('Sensor label "{}" not found in  {}'.format(label, labels))
+ 
         # Use the iterator of SQLite (streming)
         if from_dt and to_dt:
             from_s = s_from_dt(from_dt)
@@ -404,7 +411,13 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
         labels = []
         for i, item in enumerate(cur.execute('PRAGMA table_info({}_DataTimeSlots);'.format(sensor.__class__.__name__))):
             if i>1:
-                labels.append(item[1])
+                labels.append(fix_label_from_sqlite(item[1]))
+
+        # Check that we have every required labels in the storage        
+        for label in sensor.Slots_data_labels:
+            if label.lower() not in labels:
+                raise ConsistencyException('Sensor label "{}" not found in  {}'.format(label, labels))
+ 
      
         # Use the iterator of SQLite (streaming)
         if from_dt and to_dt:
