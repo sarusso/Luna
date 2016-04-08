@@ -102,8 +102,49 @@ print 'Loaded timeSeries (load forced):', time_series_out
 
 # Documentation
 
-Coming soon...
+## Operations and Generators ordering
 
+The aggregators use operations and aggregators to aggregate the data. The operations are applied to a single quanity to generate another quantity,
+while aggregators can be applied to more than one quantity (but generates only one quantity as the operations).
+
+Standard aggregators and operations are privided in Luna. If you just aggregate a dataTimeSeries, by default only the AVG operation is applied.
+To perfomr more complex aggregations you need to define a Sensor object. In the Sensor object, the Slots_data_labels list drives the aggregation.
+Let's consider the following sensor as example:
+For example, a Slots_data_labels with the following values:
+    
+    MyEnergySensor(PhysicalDataTimeSensor):
+    
+       Points_data_labels = ['power_W']
+       Slots_data_labels  = ['power_W_AVG', 'power_W_MIN', 'power_W_MAX', 'energy_kWh_TOT']
+    
+When aggregating from points to slots, the aggregator will apply the AVG. MIN and MAX operations to the power, and 
+will generate the new quantity energy_kWh_TOT using its generator. You can use standard operation and generators, 
+or you can overwrite them in your Sensor class.
+
+For example, if you modify your MyEnergySensor class to look like the following:
+
+    MyEnergySensor(PhysicalDataTimeSensor):
+    
+        Points_data_labels = ['power_W']
+        Slots_data_labels  = ['power_W_AVG', 'power_W_MIN', 'power_W_MAX', 'energy_kWh_TOT']
+       
+        class AVG(Operation):
+            @staticmethod
+            def generate(dataSeries, start_Point, end_Point, aggregated_datas):
+                pass
+       
+        class energy_kWh_TOT(PhysicalQuantityGenerator):
+       
+            @staticmethod
+            def compute_on_Points(dataSeries, start_Point, end_Point):
+                pass
+
+            @staticmethod
+            def compute_on_Slots(dataSeries, start_Point, end_Point):
+                pass
+
+then Luna will use your AVG operation ad your energy_kWh_TOT generator. Please note that the order of the Slots_data_labels defines the order of the
+operations/generators.
 
 # Demos
 

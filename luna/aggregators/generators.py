@@ -21,7 +21,7 @@ class QuantityGenerator(object):
         raise NotImplementedError 
     
     # Generator code
-    @classmethod
+    @staticmethod
     def generate(dataSeries, aggregated_data, start_Point, end_Point):
         raise NotImplementedError()
     
@@ -60,7 +60,7 @@ class PhysicalQuantityGenerator(object):
         raise NotImplementedError 
     
     # Generator code
-    @classmethod
+    @staticmethod
     def generate(dataSeries, aggregated_data, start_Point, end_Point):
         raise NotImplementedError()
     
@@ -73,37 +73,18 @@ class PhysicalQuantityGenerator(object):
 #------------------------------
 
 class energy_kWh_TOT(PhysicalQuantityGenerator):
-    '''Energy generator'''
+    '''Energy generator. Expect to work on power_W_AVG'''
     
     # Depends
-    depends = ['power_W'] 
+    depends = ['power_W_AVG'] 
 
-    # Provides
-    provides = ['energy_kWh_TOT'] 
-    
     # Generator code
     @staticmethod
     def generate(dataSeries, aggregated_data, start_Point, end_Point):
         return -9
 
 
-#------------------------------
-# Custom generators (move in ensdk/Luna-integration)
-#------------------------------
 
-class power_W(object):
-    '''power_W for the triphase sensor'''
-    
-    # Depends
-    depends = ['power-l1_W, power-l2_W', 'power-l3_W'] 
-
-    # Provides
-    provides = ['power_W'] 
-    
-    # Generator code
-    @classmethod
-    def generate(dataSeries, aggregated_data, start_Point, end_Point):
-        raise NotImplementedError()
 
 
 

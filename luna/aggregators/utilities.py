@@ -45,9 +45,12 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
     # Support vars
     prev_dataPoint_valid_until = None
     missing_coverage = None
+    validity_region_presence = None
 
     for this_dataPoint in dataSeries:
-
+        
+        #logger.debug('HARD DEBUG %s %s %s', this_dataPoint.Point_part, this_dataPoint.validity_region.start, this_dataPoint.validity_region.end)
+        
         # If no start point has been set, just use the first one in the data
         #if start_Point is None:
         #    start_Point = dataSeries.Point_part
@@ -57,18 +60,37 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
         if this_dataPoint.Point_part < start_Point:
             
             # Just set the previous Point valid unit
-            prev_dataPoint_valid_until = this_dataPoint.validity_region.end
-            
+            try:  
+                prev_dataPoint_valid_until = this_dataPoint.validity_region.end
+                if validity_region_presence is False:
+                    raise InputException('Got DataPoint with a validity region but the previous one(s) did not have it') 
+                validity_region_presence = True
+            except AttributeError:
+                if validity_region_presence is True:
+                    raise InputException('Got DataPoint with a validity region but the previous one(s) did not have it') 
+                prev_dataPoint_valid_until = this_dataPoint.Point_part
+                validity_region_presence = False
+                            
             # Then continue
             continue
 
         # Otherwise, we are in the middle (or after the end)?
         else:
 
-            # Set this Point's validity            
-            this_dataPoint_valid_from = this_dataPoint.validity_region.start
-            this_dataPoint_valid_until = this_dataPoint.validity_region.end
-
+            # Set this Point's validity
+            try:          
+                this_dataPoint_valid_from  = this_dataPoint.validity_region.start
+                this_dataPoint_valid_until = this_dataPoint.validity_region.end
+                if validity_region_presence is False:
+                    raise InputException('Got DataPoint with a validity region but the previous one(s) did not have it') 
+                validity_region_presence = True
+            except AttributeError:
+                if validity_region_presence is True:
+                    raise InputException('Got DataPoint with a validity region but the previous one(s) did not have it') 
+                this_dataPoint_valid_from  = this_dataPoint.Point_part
+                this_dataPoint_valid_until = this_dataPoint.Point_part
+                validity_region_presence = False
+                
         # Okay, now we have all the values we need:
         # 1) prev_dataPoint_valid_until
         # 2) this_dataPoint_valid_from
