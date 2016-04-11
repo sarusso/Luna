@@ -45,7 +45,7 @@ class Base(object):
         try:
             return self._has_labels
         except AttributeError:
-            self._has_labels = True if hasattr(self, 'labels') else False
+            self._has_labels = True if hasattr(self, '_labels') else False
             return self._has_labels
 
     # Who we are, do we have values?
@@ -54,7 +54,7 @@ class Base(object):
         try:
             return self._has_values
         except AttributeError:
-            self._has_values = True if hasattr(self, 'values') else False
+            self._has_values = True if hasattr(self, '_values') else False
             return self._has_values
 
 
@@ -87,13 +87,13 @@ class Base(object):
 
     # ..and Un-implement operators which acts on the memory address as are meaningless in this context
     def __gt__(self, other):
-      raise NotImplementedError()
+        raise NotImplementedError()
     def __ge__(self, other):
-      raise NotImplementedError()
+        raise NotImplementedError()
     def __lt__(self, other):
-      raise NotImplementedError()
+        raise NotImplementedError()
     def __le__(self, other):
-      raise NotImplementedError()
+        raise NotImplementedError()
             
     # Compatibility check for labels
     def _labels_are_compatible_with(self, other, raises=False):
@@ -173,6 +173,7 @@ class Base(object):
                 return self
             
             def __next__(self):
+                # TODO: Add filtering here?
                 if self.current > len(self.linked.labels)-2:
                     raise StopIteration
                 else:
@@ -199,13 +200,20 @@ class Base(object):
     # Value for label
     def valueforlabel(self, label):
         if not self.has_labels or not self.has_values:
-            raise AttributeError('Cannot access valueforlabel since we do not have both labels and values')
+            raise AttributeError('Cannot access valueforlabel since we do not have both labels and values (has_labels={}, has_values={})'.format(self.has_labels, self.has_values))
         try:
             return self._values[self._labels.index(label)]
         except ValueError:
             raise ValueError('{} has no label named "{}"'.format(self.classname, label))
 
 
+    # Lazy filtering ON
+    def enable_lazy_filter_label(self, label):
+        self.lazy_filter_label = label
+
+    # Lazy filtering OFF
+    def disable_lazy_filter_label(self):
+        self.lazy_filter_label = None
 
 
 
@@ -243,6 +251,8 @@ class Space(Base):
             return self._labels
         except AttributeError:
             raise ConsistencyException('{}: No _labels (yet) defined, you hit a bug.'.format(self.__class__.__name__))
+
+
 
 class Coordinates(Base):
     '''A coordinates list. If contextualized in a Space with labels, each coordinate will also have its own label and it will be accessible by label.
@@ -321,17 +331,27 @@ class Coordinates(Base):
                 if not (isinstance(item, int) or isinstance(item, float)):
                     raise InputException('Wrong data of type "{}" with value "{}" in dimension with label "{}", only int and float types are valid values for DimensionalData'.format(item.__class__.__name__, item, self._labels[i]))
 
+
+    # TODO: Maybe would be better to move this one in the base class since it involves filtering against labels?
+    
     # Values property
     @property
-    def values(self):
+    def values(self):           
         return self._values
 
-    # Value property
+    # Operation value property
     @property
-    def value(self):
+    def operation_value(self):
+        try:
+            if self.lazy_filter_label:
+                return self.valueforlabel(self.lazy_filter_label)
+        except AttributeError:
+            pass
+        
         if len(self._values) > 1:
             raise AttributeError('Sorry, the "value" property is implemented for 1-D Points only (this is a {}-D Point).'.format(len(self._values)))
         return self._values[0]
+    
 
 class Point(Coordinates, Space):
     '''A point in a n-dimensional space with some coordinates'''

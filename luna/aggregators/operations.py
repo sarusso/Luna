@@ -25,10 +25,10 @@ class AVG(Operation):
                 
                 item.validity_region.valid_until
                 item.validity_region.valid_from
-                sum += item.data.value
+                sum += item.data.operation_value
                 
             except AttributeError:
-                sum += item.data.value
+                sum += item.data.operation_value
     
         return sum/len(dataSeries)
 
@@ -44,9 +44,9 @@ class MIN(Operation):
         min = None
         for dataTimePoint in dataSeries:
             if min is None:
-                min = dataTimePoint.data.value
-            elif dataTimePoint.data.value < min:
-                min = dataTimePoint.data.value
+                min = dataTimePoint.data.operation_value
+            elif dataTimePoint.data.operation_value < min:
+                min = dataTimePoint.data.operation_value
             else:
                 pass
         return min
@@ -63,9 +63,9 @@ class MAX(Operation):
         max = None
         for item in dataSeries:
             if max is None:
-                max = item.data.value
-            elif item.data.value > max:
-                max = item.data.value
+                max = item.data.operation_value
+            elif item.data.operation_value > max:
+                max = item.data.operation_value
             else:
                 pass
         return max

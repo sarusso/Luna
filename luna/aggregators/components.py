@@ -56,8 +56,7 @@ class DataTimePointsAggregator(Aggregator):
         #-------------------
         Slot_data_labels_to_generate = self.Sensor.Slots_data_labels
         Slot_data_labels             = []
-        Slot_data_values              = []
-        Slot_physicalData            = None
+        Slot_data_values             = []
         
         # Create start and end Points. TODO: is this not performant, also with the time zone? 
         start_Point = TimePoint(t=s_from_dt(start_dt), tz=start_dt.tzinfo)
@@ -76,6 +75,8 @@ class DataTimePointsAggregator(Aggregator):
         # operate on according to the sensor type
         #--------------------------------------------
         
+        # TODO: define a mapping somwhere and perform this operations only once.
+
         for Slot_data_label_to_generate in Slot_data_labels_to_generate:
             
             handled      = False
@@ -89,6 +90,7 @@ class DataTimePointsAggregator(Aggregator):
         
             if physicalQuantity_to_generate.op is None:
                 raise ConfigurationException('Sorry, PhysicalQuantity "{}" has no operation defined, cannot aggregate.'.format(physicalQuantity_to_generate))
+
 
             #--------------------------------------
             #   Handle generators
@@ -135,15 +137,26 @@ class DataTimePointsAggregator(Aggregator):
                  
             logger.debug('For generating %s I will use generator %s and operation %s', physicalQuantity_to_generate, Generator, Operation)
 
+
             #----------------------
-            # Compute
+            # Now compute
             #----------------------
 
             if not handled:
                 # TODO: add more info (i.e. sensor class etc?)
                 raise ConfigurationException('Could not handle "{}", as I did not find any way to generate it. Please check your configuration for this sensor'.format(Slot_data_label_to_generate))
 
-            if Generator:
+            # Set if streaming Operation/generator: 
+            try:
+                Generator_is_streaming = Generator.is_stremaing
+            except AttributeError:
+                Generator_is_streaming = False
+            try:
+                Operation_is_streaming = Operation.is_stremaing
+            except AttributeError:
+                Operation_is_streaming = False
+
+            if Generator and not Generator_is_streaming:
                 
                 logger.debug('Running generator %s on to generate %s', Generator, Slot_data_label_to_generate)
 
@@ -156,17 +169,18 @@ class DataTimePointsAggregator(Aggregator):
                                             end_Point       = end_Point,
                                             aggregated_data = Slot_physicalData)
 
+
                 # Ok, append the operation/generator results to the labels and values
                 logger.debug('Done running generator')
                 Slot_data_labels.append(Slot_data_label_to_generate)
                 Slot_data_values.append(result)
 
-            elif Operation:
+            elif Operation and not Operation_is_streaming:
                 
                 logger.debug('Running operation %s on %s to generate %s', Operation, operate_on, Slot_data_label_to_generate)
                 
                 # Run the operation
-                result = Operation.compute_on_Points(dataSeries  = dataTimeSeries.filter(labels=[operate_on]),
+                result = Operation.compute_on_Points(dataSeries  = dataTimeSeries.lazy_filter_data_label(label=operate_on),
                                                      start_Point = start_Point,
                                                      end_Point   = end_Point)
             
@@ -176,7 +190,7 @@ class DataTimePointsAggregator(Aggregator):
                 Slot_data_values.append(result)
                 
             else:
-                raise ConsistencyException('No generator nor Operation?!')
+                raise ConsistencyException('No generator nor Operation?! (maybe got streaming which is not yet supported)')
             
   
 

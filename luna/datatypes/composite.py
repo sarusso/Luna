@@ -165,7 +165,6 @@ class DataPoint(Point):
         return filtered_dataPoint
 
 
-
 class DataSlot(Slot):
     '''A Slot with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image).
     The coverage is a metric to help you understand how much you can rely on the slot's data. Read the doc for more info on the coverage concept.'''
@@ -394,7 +393,7 @@ class DataTimeSeries(TimeSeries):
     def __len__(self):
         return len(self._data)
 
-    def __init__(self, tz=None, index=False, wrapped=None, filter_labels=None, filter_from_dt=None, filter_to_dt=None):
+    def __init__(self, tz=None, index=False, wrapped=None, filter_labels=None, filter_from_dt=None, filter_to_dt=None, data_label_to_lazy_filter=None):
 
         # Initialize data container
         self._data = []
@@ -413,6 +412,7 @@ class DataTimeSeries(TimeSeries):
         self.filter_labels  = filter_labels
         self.filter_from_dt = filter_from_dt
         self.filter_to_dt   = filter_to_dt
+        self.data_label_to_lazy_filter = data_label_to_lazy_filter
         
     def __getattribute__(self, attr):
         # Handle wrap of myself 
@@ -421,7 +421,7 @@ class DataTimeSeries(TimeSeries):
         iswrapper = (True if wrapped else False)
         if wrapped:
             # Wrapped object, filters and iterator status are stored in myself, not in the wrapped object
-            if attr in ['wrapped', 'filter_labels', 'filter_from_dt', 'filter_to_dt', '__iter__', '__next__', 'wrapper_current']:
+            if attr in ['wrapped', 'filter_labels', 'filter_from_dt', 'filter_to_dt', 'data_label_to_lazy_filter', '__iter__', '__next__', 'wrapper_current']:
                 # Hard Debug: logger.debug('USING NOT WRAPPED %s', attr) 
                 return object.__getattribute__(self, attr)
             else:
@@ -509,12 +509,12 @@ class DataTimeSeries(TimeSeries):
         
         return self
 
-    def __next__(self, filter_from_dt=None, filter_to_dt=None, filter_labels=None, current=None):
+    def __next__(self, filter_from_dt=None, filter_to_dt=None, filter_labels=None, data_label_to_lazy_filter=None, current=None):
   
         # Wrapper logic
         if self.wrapped:
             self.wrapper_current += 1
-            return self.wrapped.__next__(filter_from_dt=self.filter_from_dt, filter_to_dt=self.filter_to_dt, filter_labels=self.filter_labels, current=self.wrapper_current-1)
+            return self.wrapped.__next__(filter_from_dt=self.filter_from_dt, filter_to_dt=self.filter_to_dt, filter_labels=self.filter_labels, data_label_to_lazy_filter = self.data_label_to_lazy_filter,  current=self.wrapper_current-1)
         
         # Use current of our wrapper
         current =  current if current is not None else self.current
@@ -526,11 +526,17 @@ class DataTimeSeries(TimeSeries):
             if not self.wrapped:
                 self.current += 1
 
-            if filter_labels is not None or filter_from_dt is not None and self.filter_to_dt is not None:
+            if filter_labels is not None or filter_from_dt is not None and self.filter_to_dt is not None or data_label_to_lazy_filter is not None:
                 
                 # Handle filtering
                 if filter_labels:
-                    return self._data[current+1].filter_data_labels(labels=filter_labels)     
+                    return self._data[current+1].filter_data_labels(labels=filter_labels)
+                elif data_label_to_lazy_filter:
+
+                    # Set filtering and return
+                    self._data[current+1].data.enable_lazy_filter_label(label=data_label_to_lazy_filter)                  
+                    return self._data[current+1]
+                
                 else:
                     raise NotImplementedError('Filtering on is not yet implemented in this method')
             
@@ -673,6 +679,9 @@ class DataTimeSeries(TimeSeries):
         else:
             return self.__class__(wrapped=self, filter_labels=labels)
 
+
+    def lazy_filter_data_label(self,label):
+        return self.__class__(wrapped=self, data_label_to_lazy_filter=label)
 
 #class PhysicalDataTimeSeries(object):
 #    '''An ordered serie of PhysicalDataTimePoints or PhysicalDataTimeSlots'''
