@@ -44,8 +44,11 @@ def now_dt(tzinfo='UTC'):
 def dt(*args, **kwargs):
     '''Initialize a datetime object in the proper way. Using the standard datetime leads to a lot of
      problems with the tz package. Also, it forces UTC timezone if no timezone is specified'''
-
-    tzinfo  = kwargs.pop('tzinfo', None)
+    
+    if 'tz' in kwargs:
+        tzinfo = kwargs.pop('tz')
+    else:
+        tzinfo  = kwargs.pop('tzinfo', None)
     trustme = kwargs.pop('trustme', None)
     
     if kwargs:
