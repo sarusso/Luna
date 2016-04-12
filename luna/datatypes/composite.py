@@ -155,7 +155,9 @@ class DataPoint(Point):
     # Point_part (or, cast to Point)
     @property
     def Point_part(self):
-        return Point(labels = self.labels, values=self.values, trustme=True)
+        if not hasattr(self, '_point_part'):
+            self._point_part = Point(labels = self.labels, values=self.values, trustme=True)
+        return self._point_part
 
     def _get_Point_part(self, *args, **kwargs):
         return self.Point_part
@@ -207,7 +209,10 @@ class DataTimePoint(TimePoint, DataPoint):
     # Point_part (or, cast to TimePoint)
     @property
     def Point_part(self):
-        return TimePoint(labels = self.labels, values=self.values, tz=self.tz, trustme=True)
+        if not hasattr(self, '_point_part'):
+            self._point_part = TimePoint(labels = self.labels, values=self.values, tz=self.tz, trustme=True)
+        return self._point_part
+
 
 
 # Decided to remove them to allow a more agnostic approach using the region and the span
@@ -325,8 +330,10 @@ class PhysicalDataTimePoint(TimePoint, PhysicalDataPoint):
     # TODO: Fix me! having to re-define the point part function every time is not correct! 
     @property
     def Point_part(self):
-        return TimePoint(labels = self.labels, values=self.values, tz=self.tz, trustme=True)
-    
+        if not hasattr(self, '_point_part'):
+            self._point_part = TimePoint(labels = self.labels, values=self.values, tz=self.tz, trustme=True)
+        return self._point_part
+
     pass
 
 class PhysicalDataTimeSlot(TimeSlot, PhysicalDataSlot):
