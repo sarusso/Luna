@@ -82,6 +82,8 @@ class DataTimePointsAggregator(Aggregator):
                                                       data     = Slot_physicalData,
                                                       span     = timeSlotSpan,
                                                       coverage = 0.0) 
+                
+                logger.info('Done aggregating, slot: %s', dataTimeSlot)
                 return dataTimeSlot
             else:
                 raise NoDataException('This slot has coverage of 0.0, cannot compute any data! (start={}, end={})'.format(start_Point, end_Point))
@@ -212,7 +214,7 @@ class DataTimePointsAggregator(Aggregator):
 
           
         #----------------------
-        # Save results **
+        # Build results
         #----------------------
 
         Slot_physicalData = self.Sensor.Points_type.data_type(labels = Slot_data_labels,
@@ -225,6 +227,7 @@ class DataTimePointsAggregator(Aggregator):
                                               coverage = Slot_coverage)
 
         # Return results
+        logger.info('Done aggregating, slot: %s', dataTimeSlot)
         return dataTimeSlot
     
 
@@ -245,6 +248,7 @@ class DataTimeSeriesAggregatorProcess(object):
     '''A DataTimeSeriesAggregatorProcess run one or more DataTimePointsAggregator or DataTimeSlotsAggregator
     to generate a DataTimeSeries of DataTimeSlots. The destination DataTimeSlot drives the process (i.e. 
     aggregate in 15 minutes slots). The DataTimeSeriesAggregatorProcess is STATEFUL'''
+
     
     def __init__(self, timeSlotSpan, Sensor, data_to_aggregate, allow_None_data=False):
         ''' Initiliaze the aggregator process, of a given timeSlotSpan.'''
@@ -280,7 +284,11 @@ class DataTimeSeriesAggregatorProcess(object):
             self._aggregator = self.Aggregator(Sensor=self.Sensor)
         return self._aggregator
 
-    def start(self, dataTimeSeries, start_dt, end_dt, rounded=False, threaded=False):
+
+    #------------------
+    #  Start process
+    #------------------
+    def start(self, dataTimeSeries, start_dt, end_dt, rounded=False, threaded=False, callback=None, callback_trigger=None):
         ''' Start the aggregator process. if start is not set, the first datapoint is used. If end is not set,
         once the process will provide the results until the last datapoint (useful for online processing)
         '''
@@ -317,8 +325,10 @@ class DataTimeSeriesAggregatorProcess(object):
                                                                                                        end_dt,
                                                                                                        self.Sensor.__class__.__name__,
                                                                                                        dataTimeSeries))
+        callback_counter = 1
+        
         for dataTimePoint in dataTimeSeries:
-
+            
             # Set start_dt if not already done
             if not start_dt:
                 start_dt = self.timeSlotSpan.timeInterval.round_dt(dataTimePoint.dt) if rounded else dataTimePoint.dt
@@ -382,7 +392,14 @@ class DataTimeSeriesAggregatorProcess(object):
                                                                        allow_None_data    = self.allow_None_data)
                         # .. and append results 
                         self.results_dataTimeSeries.append(aggregator_results)
-
+                        
+                        # Also, handle the callback
+                        callback_counter +=1
+                        if callback_trigger and callback_counter > callback_trigger:
+                            if callback:
+                                callback(self, triggerer=self)
+                                callback_counter = 1
+                    
                     # Create a new slot
                     slot_start_dt = slot_end_dt
                     slot_end_dt   = slot_start_dt + self.timeSlotSpan
@@ -390,7 +407,7 @@ class DataTimeSeriesAggregatorProcess(object):
                     # Create a new filtered_dataTimeSeries as part of the 'create a new slot' procedure
                     filtered_dataTimeSeries = DataTimeSeries()
 
-                    logger.info('SlotStream: Spawned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
+                    logger.info('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
                     
        
        
@@ -404,40 +421,51 @@ class DataTimeSeriesAggregatorProcess(object):
 
 
         #----------------------------
-        # Last slots(s)
+        # Last slots
         #----------------------------        
+        force_close_last=False      
+        if force_close_last:
+
+            # 1) Close the last slot and aggreagte it. You should never do it unless you knwo what you are doing
+            if filtered_dataTimeSeries:
+    
+                logger.info('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
+      
+                # Aggregate
+                aggregator_results =  self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
+                                                                start_dt           = slot_start_dt,
+                                                                end_dt             = slot_end_dt,
+                                                                timeSlotSpan       = self.timeSlotSpan)
                 
-        # After going trough all the data time series, two things to do are remaining:
-        
-        # 1) Close the last slot
-        
-        #------------ START send to aggregation ------ 
-        
-        # Close the current slot and aggreagte it
-        if filtered_dataTimeSeries:
+                # .. and append results
+                self.results_dataTimeSeries.append(aggregator_results)
+                
+                # Also, handle the callback
+                callback_counter +=1
+                if callback_trigger and callback_counter > callback_trigger:
+                    if callback:
+                        callback(self, triggerer=self)
+                        callback_counter = 1
+                
 
-            logger.info('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
-  
-            # Aggregate
-            aggregator_results =  self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
-                                                            start_dt           = slot_start_dt,
-                                                            end_dt             = slot_end_dt,
-                                                            timeSlotSpan       = self.timeSlotSpan)
-            
-            # .. and append results 
-            self.results_dataTimeSeries.append(aggregator_results)
-
-
-        # 2) Handle missing slots until the requested end (end_dt)
-        
-        # TODO...
+            # 2) Handle missing slots until the requested end (end_dt)
+            # TODO...
 
  
+    #------------------
+    #  Get results
+    #------------------
     def get_results(self, until=None):
         if until:
             raise NotImplementedError('getting partial results is not yet supported')
-         
-        return self.results_dataTimeSeries
+        
+        # "Save" current results
+        results = self.results_dataTimeSeries
+        
+        # Empty current results
+        self.results_dataTimeSeries =  DataTimeSeries()
+        
+        return results
 
 
 
