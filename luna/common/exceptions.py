@@ -11,3 +11,6 @@ class ConfigurationException(Exception):
 
 class StorageException(Exception):
     pass
+
+class NoDataException(Exception):
+    pass

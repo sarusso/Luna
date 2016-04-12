@@ -1,7 +1,7 @@
 from luna.datatypes.dimensional import TimePoint, TimeSlot
 from luna.datatypes.composite import DataTimePoint, DataTimeSlot, PhysicalData, DataTimeSeries, DataPoint, DataSlot
 from luna.datatypes.auxiliary import PhysicalQuantity
-from luna.common.exceptions import ConsistencyException, ConfigurationException, InputException
+from luna.common.exceptions import ConsistencyException, ConfigurationException, InputException, NoDataException
 from luna.aggregators.utilities import compute_1D_coverage
 from luna.spacetime.time import s_from_dt
 
@@ -39,7 +39,7 @@ class DataTimePointsAggregator(Aggregator):
     def __init__(self, Sensor):
         self.Sensor = Sensor
     
-    def aggregate(self, dataTimeSeries, start_dt, end_dt, timeSlotSpan):
+    def aggregate(self, dataTimeSeries, start_dt, end_dt, timeSlotSpan, allow_None_data=False):
 
         #-------------------
         # Sanity checks
@@ -55,7 +55,7 @@ class DataTimePointsAggregator(Aggregator):
         # Support vars
         #-------------------
         Slot_data_labels_to_generate = self.Sensor.Slots_data_labels
-        Slot_data_labels             = []
+        Slot_data_labels             = [] # TODO: REMOVE, this is the same as Slot_data_labels_to_generate
         Slot_data_values             = []
         
         # Create start and end Points. TODO: is this not performant, also with the time zone? 
@@ -69,6 +69,22 @@ class DataTimePointsAggregator(Aggregator):
         Slot_coverage = compute_1D_coverage(dataSeries  = dataTimeSeries,
                                             start_Point = start_Point,
                                             end_Point   = end_Point)
+
+        # If no coverage return list of None
+        if Slot_coverage == 0.0:
+            if allow_None_data:
+                Slot_physicalData = self.Sensor.Points_type.data_type(labels  = Slot_data_labels_to_generate,
+                                                                      values  = [None for _ in Slot_data_labels_to_generate], # Force "trustme" to allow None in data
+                                                                      trustme = True)
+                
+                dataTimeSlot = self.Sensor.Slots_type(start    = start_Point,
+                                                      end      = end_Point,
+                                                      data     = Slot_physicalData,
+                                                      span     = timeSlotSpan,
+                                                      coverage = 0.0) 
+                return dataTimeSlot
+            else:
+                raise NoDataException('This slot has coverage of 0.0, cannot compute any data! (start={}, end={})'.format(start_Point, end_Point))
 
         #--------------------------------------------
         # Understand the labels to produce and to 
@@ -162,7 +178,7 @@ class DataTimePointsAggregator(Aggregator):
 
                 # A generator also requires access to the aggregated data, so we initialize it also here**
                 Slot_physicalData = self.Sensor.Points_type.data_type(labels = Slot_data_labels,
-                                                                          values = Slot_data_values)
+                                                                      values = Slot_data_values)
                 # Run the generator
                 result = Generator.generate(dataSeries      = dataTimeSeries,
                                             start_Point     = start_Point,
@@ -230,13 +246,14 @@ class DataTimeSeriesAggregatorProcess(object):
     to generate a DataTimeSeries of DataTimeSlots. The destination DataTimeSlot drives the process (i.e. 
     aggregate in 15 minutes slots). The DataTimeSeriesAggregatorProcess is STATEFUL'''
     
-    def __init__(self, timeSlotSpan, Sensor, data_to_aggregate):
+    def __init__(self, timeSlotSpan, Sensor, data_to_aggregate, allow_None_data=False):
         ''' Initiliaze the aggregator process, of a given timeSlotSpan.'''
 
         # Arguments
         self.timeSlotSpan            = timeSlotSpan
         self.Sensor                  = Sensor
         self.data_to_aggregate       = data_to_aggregate
+        self.allow_None_data         = allow_None_data
         
         # Internal vars
         self.results_dataTimeSeries  = DataTimeSeries()
@@ -361,7 +378,8 @@ class DataTimeSeriesAggregatorProcess(object):
                         aggregator_results = self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
                                                                        start_dt           = slot_start_dt,
                                                                        end_dt             = slot_end_dt,
-                                                                       timeSlotSpan       = self.timeSlotSpan)
+                                                                       timeSlotSpan       = self.timeSlotSpan,
+                                                                       allow_None_data    = self.allow_None_data)
                         # .. and append results 
                         self.results_dataTimeSeries.append(aggregator_results)
 
@@ -442,281 +460,6 @@ def obtain_data_type(dataTimeSeries):
         raise ConsistencyException("Got no DataTimePoint, no DataTimeSlot and not None {}".format(type(dataTimeSeries.data_type))) 
 
                     
-
-
-
-
-
-
-# #-------------------------------------
-# #    OLD follows
-# #-------------------------------------
-
-
-
-
-
-#             
-#             
-#                 # First, do we have to create missing slots between the previous slot_end and this slot_start?
-#                 # This procedure works in general for slots at the beginning and in the middle.
-#          
-#                 if (prev_slot_end + self.timeSlotSpan.timeInterval) < dataTimePoint.dt:
-#                     print 'Ok, here we need to generate 1 to n of missing slots'
-#                     
-#                 
-#                 # Second, if the dataTimePoint.dt is after the current slot, we neet to create a new one
-#                 if slot_end
-#                 and (dataTimePoint.dt >)
-#                 
-#                 # Otherwise, we are in the correct slot.
-#                 
-#                 # Now, 
-#                 
-#                 slot_start
-#             
-#                 print 'dataTimePoint.dt: ', dataTimePoint.dt
-#                 print 'slot_start   : ', slider_cur_dt
-#                 
-#                 # Is the first slot initialized?
-#                 if not slot_start_dt:
-#                     slot_start_dt = slider_cur_dt
-#                 if not slot_end_dt:
-#                     slot_end_dt = slot_start_dt + self.timeSlotSpan.timeInterval
-#                 
-#                 
-#                 # Are we in the first slot?
-#                 if dataTimePoint.dt < slot_end_dt
-#             
-# 
-#                 # Start unrolling the timeSeries and the slots in the same time:
-#                 
-#             
-#             # Now crate the slots 
-#             while True:
-#             
-#                 slot_start_dt = slider_dt
-#                 slot_end_dt   = slider_dt + self.timeSlotSpan.timeInterval
-#                 
-#                 # Here we are in a slot: start consuming the dataTimeSeries:
-#                 
-#                 # Fisrt, create a filtered dataTImeSeries
-#                 filtered_dataTimeSeries = DataTimeSeries()
-#                 
-#                 # Now start start consuming the dataTimeSeries filtering it to obtain the data for this slot
-#                 # TODO: optimize if not working with a streaming time series, just pass over the original one?
-#                 
-#                     
-#                 if item.dt < slot_start_dt:
-# 
-#                     continue
-#                 if item.dt >= slot_end_dt:
-#                     # Stop filtering the dataTimeSeries and send it to the aggregation phase
-#                     print filtered_dataTimeSeries
-#                     break
-#                 else:
-#                     # Otherwise, keep adding items.
-#                     print 'appending', item
-#                     filtered_dataTimeSeries.append(item)
-#         
-#                 
-#                 
-#                 
-#                 # Are we processing a DataTimeSeries of Points or Slots?
-#                 if not data_type:
-#                     obtain_data_type(filtered_dataTimeSeries)
-#         
-#                 # Which aggregator class to run then?
-#                 if not aggregator:
-#                     if data_type == DataTimePoint:
-#                         aggregator = DataTimePointsAggregator(Sensor=self.Sensor)  
-#                     elif data_type == DataTimeSlot:
-#                         aggregator = DataTimeSlotsAggregator(Sensor=self.Sensor)
-#                     elif data_type == None:
-#                         pass
-#                     else:
-#                         raise ConsistencyException("Unhandable data tpe: got no DataTimePoint, no DataTimeSlot and not None (got {})".format(data_type)) 
-#         
-#         
-#                 
-#                 print ''
-#                 print '-------------- SLOT START ---------------'
-#                 print 'slot_start_dt', slot_start_dt
-#                 print 'slot_end_dt', slot_end_dt
-#                 print dataTimeSeries
-#                 print '-----------------------------------------'
-#                 print ''
-#         
-#                 sys.exit(0)
-#                 if end_dt:
-#                     if slot_end_dt >= slider_end_dt:
-#                         break
-#                 else:
-#                     raise NotImplementedError('Not yet')
-#                     # if time series ended, break
-#                 
-#                 
-#                 # Set new slider value
-#                 slider_dt = slot_end_dt
-# 
-# 
-#         # for each Slot call the aggregator. For now just one.
-#         for _ in range(1,2):
-#             print dataTimeSeries
-#             
-#             # Select a subset of the time series:
-#             
-#             dataTimeSeries.filter(from_dt=start_dt, to_dt=end_dt)
-#             
-#             logger.info('Calling aggregator {}'.format(aggregator.__class__.__name__))
-#             aggregator.aggregate(dataTimeSeries     = dataTimeSeries,
-#                                  start_dt           = start_dt,
-#                                  end_dt             = end_dt,
-#                                  prev_dataTimePoint = None,
-#                                  next_dataTimePoint = None)
-#             
-
-
-
-
-
-
-
-
-# See also componets for Ste, Series, etc. etc.!!
-
-# 
-# 
-# #------------------------ BO -------------------------
-# 
-# class DataTimeSeriesAggregtor():
-#     '''Operates on: DataTimeSeries, start_dt, end_dt'''
-# 
-#     def aggregate(self, dataTimeSeries, start_dt, end_dt, prev_dataTimePoint, next_dataTimePoint):
-#         results = None
-#         return results
-# 
-# class DataTimeSeriesAggregatorProcess():
-#     '''Start the aggregation of a DataTimeSeries in a single Slot'''
-#     pass
-# 
-# class DataTimeSeriesSlottedAggregatorProcess():
-#     '''Start the aggregation of a DataTimeSeries in multiple Slots'''
-# 
-# 
-# #-------------------------------------------------------
-# 
-# #class AggregatorProcess(object):
-# 
-# class SetAggregatorProcess(object):
-#     '''A SetAggregator.'''
-#     pass
-# 
-#     def aggregate(self):
-#         pass
-# 
-# 
-# class DataSetAggregatorProcess(SetAggregatorProcess):
-#     '''A DataSetAggregator.'''
-#     pass
-# 
-# class SeriesAggregatorProcess(object):
-#     '''A SeriesAggregator.'''
-#     pass
-# 
-# class DataSeriesAggregatorProcess(SeriesAggregatorProcess):
-#     '''A DataSeriesAggregator.'''
-#     pass
-# 
-# class DataTimeSeriesAggregator(DataSeriesAggregator):  
-#     '''Aggregates DataTimeSeries of DataTimePoints or DataTimeSlots to provide a DataTimeSeries of DataTimeSlots'''
-#     pass
-# 
-# 
-# class Aggregator(object):
-#     '''Aggregate data. Input: free. Output: free'''
-#     pass
-# 
-# class PointsAggregator(Aggregator):
-#     '''Aggregat points into a slot'''
-#     
-#     
-# 
-# class DataTimeSeriesAggregator
-# 
-# class DataTimePointsAggregator(Aggregator):
-#     ''' Aggregate Points into slots'''
-# 
-# class DataTimeSlotsAggregator(object):
-#     ''' Aggregate Slots into slots'''
-# 
-# 
-# 
-# 
-# 
-# ##################################################################
-# # SlotAggregator -> TimeSlotAggregator
-# ##################################################################
-# 
-# 
-# class DataTimeSlotsAggregator():
-#     ''' Aggregates DataTimeSeries of DataTimePoints or DataTimeSlots to privide a DataTimeSeries of DataTimeSlots'''
-#     pass
-# 
-# 
-# class DataTimeSlotsAggregator():
-#     ''' Aggregates DataTimeSeries of DataTimePoints or DataTimeSlots to privide a DataTimeSeries of DataTimeSlots'''
-#     pass
-# 
-# 
-# 
-# 
-# # TODO: should be DataTimeSeries(TimeSeries, DataSeries)?
-# class DataTimeSeriesAggregator(TimeSeriesAggregator): # -> DataTimeSeries
-#     pass
-# 
-# 
-# ##################################################################
-# 
-# 
-# class SetAggregator(object):
-#     '''Aggregates a Set of Points or Regions in whatever kind of output data'''
-#     pass
-#     
-# class DataSetAggregator(SetAggregator):
-#     '''Aggregates a DataSet of DataPoints or DataRegions of whatever kind of data in a DataRegion.
-#     The DataSetAggregator computes also the coverage: how well is the result DataRegion covered by 
-#     the DataPoints or DataRegions being aggregated.'''
-#     pass
-# 
-# class DataTimeSeriesAggregator(DataSetAggregator):
-#     '''Aggregates a TimeSeries of DataTimePoints or DataTimeSlots to give a TimeDataSlot with the results.
-#     The results DataTimeSlot start and end are can be set or auto-detected given the input data.'''
-#     pass
-# 
-# 
-# 
-# class AggregatorProcess(object):
-#     pass
-# 
-# 
-# 
-# class AggregatorProcess(object):
-#     '''This is a generic aggregator process, and it is stateful. It operates on a TimeSerie using an Aggregator and store
-#     some results (numbers, string, dict, and of course TimeSerie). The results MUST be ann object of the class AggregatorResults,
-#     as they must hav the __add__ implemented to be concatenated by the aggregator process.'''
-# 
-#     def __init__(self, aggregator, start_dt, end_dt):
-#         ''' Initiliaze the aggregator process. if start is not set, the first datapoint is used. If end is not set,
-#         once the process will provide the results until the last datapoint olny (useful for online processing)
-#         the aggregator is an Aggregator object already instatitated'''
-# 
-# 
-# 
-# 
-# 
-# 
-# 
 
 
 
