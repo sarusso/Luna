@@ -64,6 +64,9 @@ class DataPoint(Point):
         if validity_region_span is not None:
             self.validity_region_span = validity_region_span
             
+        # Init empty _validity_region:
+        self._validity_region = None 
+         
         # Consistency checks
         if not trustme:              
             
@@ -129,6 +132,10 @@ class DataPoint(Point):
     @property
     def validity_region(self):
         
+        # Return if already computed
+        if self._validity_region:
+            return self._validity_region
+        
         # Only symmetric regions are supported in the Generic DataPoint, so we 
         # Center on lower corner
 
@@ -142,7 +149,8 @@ class DataPoint(Point):
             # Approach B): Raise 
             raise AttributeError('{}; Sorry, you cannot ask me for mine validity_region if you did not provide me a validity_region_span'.format(self.classname))
 
-        return self.validity_region_class(anchor=self.Point_part, span=self.validity_region_span)
+        self._validity_region = self.validity_region_class(anchor=self.Point_part, span=self.validity_region_span)
+        return self._validity_region
 
     # Point_part (or, cast to Point)
     @property
@@ -290,8 +298,11 @@ class PhysicalDataPoint(DataPoint):
     data_type = PhysicalData
     
     def __init__(self, *argv, **kwargs):
-        if 'data' in kwargs and not isinstance(kwargs['data'], PhysicalData):
-            raise InputException('No PhysicalData found in data')
+        if 'trustme' in kwargs and kwargs['trustme']:
+            pass
+        else:
+            if 'data' in kwargs and not isinstance(kwargs['data'], PhysicalData):
+                raise InputException('No PhysicalData found in data')
         super(PhysicalDataPoint, self).__init__(*argv, **kwargs)
            
 class PhysicalDataSlot(DataSlot):
@@ -300,8 +311,11 @@ class PhysicalDataSlot(DataSlot):
     data_type = PhysicalData
     
     def __init__(self, *argv, **kwargs):
-        if 'data' in kwargs and not isinstance(kwargs['data'], PhysicalData):
-            raise InputException('No PhysicalData found in data')
+        if 'trustme' in kwargs and kwargs['trustme']:
+            pass
+        else:
+            if 'data' in kwargs and not isinstance(kwargs['data'], PhysicalData):
+                raise InputException('No PhysicalData found in data')
         super(PhysicalDataSlot, self).__init__(*argv, **kwargs)
 
 

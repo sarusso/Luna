@@ -94,6 +94,14 @@ class Base(object):
         raise NotImplementedError()
     def __le__(self, other):
         raise NotImplementedError()
+
+    # ..and Un-implement iterator
+    def __iter__(self):
+        raise NotImplementedError('Iterator is not implemented')        
+    def __next__(self):
+        raise NotImplementedError('Iterator is not implemented')
+    def next(self):
+        raise NotImplementedError('Iterator is not implemented')
             
     # Compatibility check for labels
     def _labels_are_compatible_with(self, other, raises=False):
