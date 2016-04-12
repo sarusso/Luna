@@ -70,8 +70,12 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
                     raise InputException('Got DataPoint with a validity region but the previous one(s) did not have it') 
                 prev_dataPoint_valid_until = this_dataPoint.Point_part
                 validity_region_presence = False
-                            
             # Then continue
+            continue
+
+        # Are we after the end_Point? 
+        elif this_dataPoint.Point_part > end_Point:
+            # TODO: implement proper logic, see the AVG operation.
             continue
 
         # Otherwise, we are in the middle (or after the end)?
@@ -114,15 +118,23 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
         prev_dataPoint_valid_until = this_dataPoint_valid_until
 
     # Compute the coverage until the end point
-    if end_Point > prev_dataPoint_valid_until:
-        if missing_coverage is not None:
-            missing_coverage += (end_Point - prev_dataPoint_valid_until).values[0]
-        else:
-            missing_coverage = (end_Point - prev_dataPoint_valid_until).values[0]
+    if prev_dataPoint_valid_until is not None:
+        if end_Point > prev_dataPoint_valid_until:
+            if missing_coverage is not None:
+                missing_coverage += (end_Point - prev_dataPoint_valid_until).values[0]
+            else:
+                missing_coverage = (end_Point - prev_dataPoint_valid_until).values[0]
+    else:
+        # No data at all:
+        return 0.0
 
     # Convert missing_coverage_s_is in percentage
     if missing_coverage is not None:
         coverage = 1.0 - float(missing_coverage) / ( end_Point.values[0] - start_Point.values[0] ) 
+        if coverage <0 or coverage >1:
+            for item in dataSeries:
+                print item
+            raise ConsistencyException('Got Negative coverage!! {}'.format(coverage))
     else:
         coverage = 1.0
         
