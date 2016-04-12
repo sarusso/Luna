@@ -1,5 +1,6 @@
 
 from luna.datatypes.composite import DataTimeSeries
+from luna.common.exceptions import ConsistencyException
 
 class Operation(object):
     
@@ -17,20 +18,102 @@ class AVG(Operation):
     @staticmethod
     def compute_on_Points(dataSeries, start_Point, end_Point):
            
+           
         sum = 0.0
-        for item in dataSeries:
-            try:
-                # TODO: weight the average accoridng to the time interval between points.
-                # Also, operations should be aware of prev and next datapoints.
+        
+        # Compute total lenght
+        total_weight   = (end_Point.operation_value - start_Point.operation_value)
+        prev_dataPoint = None
+        prev_weight    = None
+        prev_value     = None
+        weighted       = None
+        
+        for this_dataPoint in dataSeries:
+      
+            # Set if weighetd avg or not
+            if weighted is None:
+                try:
+                    this_dataPoint.validity_region
+                    weighted = True
+                except AttributeError:
+                    weighted = False                
                 
-                item.validity_region.valid_until
-                item.validity_region.valid_from
-                sum += item.data.operation_value
+            if weighted:
+                # Special case of only one point:
+                if len(dataSeries) == 1:
+                    
+                    sum = this_dataPoint.operation_value
+                    
+                    if this_dataPoint.validity_region.start < start_Point:
+                        # Weight differently
+                        pass
+                    if this_dataPoint.validity_region.end > end_Point:
+                        # Weight differently
+                        pass
+                    
+                    # Ok, break.
+                    break
                 
-            except AttributeError:
-                sum += item.data.operation_value
+                # Special case of the first point and more than one point
+                if prev_dataPoint is None:
+                    prev_dataPoint = this_dataPoint
+                    continue
+                             
+                # If we have two points..
+                prev_dataPoint_validiy_region_start = prev_dataPoint.validity_region.start
+                prev_dataPoint_validiy_region_end   = prev_dataPoint.validity_region.end       
+                this_dataPoint_validiy_region_start = this_dataPoint.validity_region.start
+                this_dataPoint_validiy_region_end   = this_dataPoint.validity_region.end
+
+                # Set correct limits                
+                if prev_dataPoint_validiy_region_start < start_Point:
+                    prev_dataPoint_validiy_region_start = start_Point
+                if this_dataPoint_validiy_region_start < start_Point:
+                    this_dataPoint_validiy_region_start = start_Point              
+                if prev_dataPoint_validiy_region_end > end_Point:
+                    prev_dataPoint_validiy_region_end = end_Point                            
+                if this_dataPoint_validiy_region_end > end_Point:
+                    this_dataPoint_validiy_region_end = end_Point   
+                
+                # Set correct prev_end:
+                prev_dataPoint_validiy_region_end = prev_dataPoint_validiy_region_end if  this_dataPoint_validiy_region_start > prev_dataPoint_validiy_region_end else this_dataPoint_validiy_region_start
+                
+                # Set correct weight
+                prev_weight = (prev_dataPoint_validiy_region_end.operation_value - prev_dataPoint_validiy_region_start.operation_value)
+
+                if prev_weight<0:
+                    raise ConsistencyException('Got negative weight: {}'.format(prev_weight))
+            
+                # Compute
+                sum += ( prev_weight * prev_dataPoint.data.operation_value )
+                
+                # Reassign
+                prev_dataPoint = this_dataPoint
+          
+            else:
+                sum += this_dataPoint.data.operation_value
     
-        return sum/len(dataSeries)
+        if weighted:
+            # Last step in case of no 'next' point:
+            if prev_weight is not None and prev_dataPoint.Point_part <= end_Point:
+                
+                # Set correct limits                
+                if prev_dataPoint_validiy_region_start < start_Point:
+                    prev_dataPoint_validiy_region_start = start_Point
+                if this_dataPoint_validiy_region_start < start_Point:
+                    this_dataPoint_validiy_region_start = start_Point              
+                prev_weight = (prev_dataPoint_validiy_region_end.operation_value - prev_dataPoint_validiy_region_start.operation_value)
+                
+                # Set and add sum
+                prev_value  = this_dataPoint.data.operation_value
+                sum += (prev_weight*prev_value)
+        
+            
+            return sum/total_weight
+    
+        else:        
+            return sum/len(dataSeries)
+
 
     @staticmethod
     def compute_on_Slots(dataSeries, start_Point, end_Point):

@@ -38,23 +38,26 @@ class EnergyElectricExtendedTriphase(PhysicalDataTimeSensor):
                            "rpower-l3_VAr" ]
     
     # Set Slots operators
-    Slots_data_labels =  [ "power-l1_W_AVG", "power-l1_W_MIN", "power-l1_W_MAX",
-                           "current-l1_A_AVG", 
-                           "voltage-l1_V_AVG",
-                           "rpower-l1_VAr_AVG",
+    Slots_data_labels =  [ # == Operations ==
+                           "power-l1_W_AVG", "power-l1_W_MIN", "power-l1_W_MAX",
+                           "current-l1_A_AVG", "current-l1_A_MIN", "current-l1_A_MAX",
+                           "voltage-l1_V_AVG", "voltage-l1_V_MIN", "voltage-l1_V_MAX",
+                           "rpower-l1_VAr_AVG", "rpower-l1_VAr_MIN", "rpower-l1_VAr_MAX",
                            # ---------------- 
                            "power-l2_W_AVG", "power-l2_W_MIN", "power-l2_W_MAX",
-                           "current-l2_A_AVG", 
-                           "voltage-l2_V_AVG",
-                           "rpower-l2_VAr_AVG",
+                           "current-l2_A_AVG", "current-l2_A_MIN", "current-l2_A_MAX",
+                           "voltage-l2_V_AVG", "voltage-l2_V_MIN", "voltage-l2_V_MAX",
+                           "rpower-l2_VAr_AVG", "rpower-l2_VAr_MIN", "rpower-l2_VAr_MAX",
                            # ----------------
                            "power-l3_W_AVG", "power-l3_W_MIN", "power-l3_W_MAX",
-                           "current-l3_A_AVG", 
-                           "voltage-l3_V_AVG",
-                           "rpower-l3_VAr_AVG",
-                           # ----------------
-                           "power_W_AVG",
-                            ]
+                           "current-l3_A_AVG", "current-l3_A_MIN", "current-l3_A_MAX",
+                           "voltage-l3_V_AVG", "voltage-l3_V_MIN", "voltage-l3_V_MAX",
+                           "rpower-l3_VAr_AVG", "rpower-l3_VAr_MIN", "rpower-l3_VAr_MAX",
+                           # == Generators ==
+                           "power_W_AVG", "power_W_MIN", "power_W_MAX",
+                           "current_A_AVG", "current_A_MIN", "current_A_MAX",
+                           "voltage_V_AVG", "voltage_V_MIN", "voltage_V_MAX",
+                           "rpower_VAr_AVG", "rpower_VAr_MIN", "rpower_VAr_MAX"]
        
     # Set validity region span for points
     Points_validity_region_span = TimeSlotSpan('2m')
@@ -62,13 +65,82 @@ class EnergyElectricExtendedTriphase(PhysicalDataTimeSensor):
     # Fixed timezone:
     timezone = "Europe/Rome"
     
+    # Generators for Power
     class power_W_AVG(PhysicalQuantityGenerator):
-        '''Power generator for the triphase sensor. Expects to work on power-l1_W_AVG, power-l2_W_AVG and power-l3_W_AVG'''
-
-        # Generator code
+        '''Power AVG generator for the triphase sensor. Expects to work on power-l1_W_AVG, power-l2_W_AVG and power-l3_W_AVG'''
         @staticmethod
-        def generate(dataSeries, aggregated_data, start_Point, end_Point):
-            return 10
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):   # TODO:   dataSeries-> Points_dataSeries, aggregated_data -> Slot something
+            return aggregated_data.content['power-l1_W_AVG'] + aggregated_data.content['power-l2_W_AVG'] + aggregated_data.content['power-l3_W_AVG']
+
+    class power_W_MIN(PhysicalQuantityGenerator):
+        '''Power MIN generator for the triphase sensor. Expects to work on power-l1_W_MIN, power-l2_W_MIN and power-l3_W_MIN'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):    
+            return aggregated_data.content['power-l1_W_MIN'] + aggregated_data.content['power-l2_W_MIN'] + aggregated_data.content['power-l3_W_MIN']
+    
+    class power_W_MAX(PhysicalQuantityGenerator):
+        '''Power MAX generator for the triphase sensor. Expects to work on power-l1_W_MAX, power-l2_W_MAX and power-l3_W_MAX'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):    
+            return aggregated_data.content['power-l1_W_MAX'] + aggregated_data.content['power-l2_W_MAX'] + aggregated_data.content['power-l3_W_MAX']
+
+    # Generators for Current
+    class current_A_AVG(PhysicalQuantityGenerator):
+        '''current AVG generator for the triphase sensor. Expects to work on current-l1_A_AVG, current-l2_A_AVG and current-l3_A_AVG'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):   # TODO:   dataSeries-> Points_dataSeries, aggregated_data -> Slot something
+            return aggregated_data.content['current-l1_A_AVG'] + aggregated_data.content['current-l2_A_AVG'] + aggregated_data.content['current-l3_A_AVG']
+
+    class current_A_MIN(PhysicalQuantityGenerator):
+        '''current MIN generator for the triphase sensor. Expects to work on current-l1_A_MIN, current-l2_A_MIN and current-l3_A_MIN'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):    
+            return aggregated_data.content['current-l1_A_MIN'] + aggregated_data.content['current-l2_A_MIN'] + aggregated_data.content['current-l3_A_MIN']
+    
+    class current_A_MAX(PhysicalQuantityGenerator):
+        '''current MAX generator for the triphase sensor. Expects to work on current-l1_A_MAX, current-l2_A_MAX and current-l3_A_MAX'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):    
+            return aggregated_data.content['current-l1_A_MAX'] + aggregated_data.content['current-l2_A_MAX'] + aggregated_data.content['current-l3_A_MAX']
+
+    # Generators for Voltage
+    class voltage_V_AVG(PhysicalQuantityGenerator):
+        '''voltage AVG generator for the triphase sensor. Expects to work on voltage-l1_V_AVG, voltage-l2_V_AVG and voltage-l3_V_AVG'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):   # TODO:   dataSeries-> Points_dataSeries, aggregated_data -> Slot something
+            return aggregated_data.content['voltage-l1_V_AVG'] + aggregated_data.content['voltage-l2_V_AVG'] + aggregated_data.content['voltage-l3_V_AVG']
+
+    class voltage_V_MIN(PhysicalQuantityGenerator):
+        '''voltage MIN generator for the triphase sensor. Expects to work on voltage-l1_V_MIN, voltage-l2_V_MIN and voltage-l3_V_MIN'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):    
+            return aggregated_data.content['voltage-l1_V_MIN'] + aggregated_data.content['voltage-l2_V_MIN'] + aggregated_data.content['voltage-l3_V_MIN']
+    
+    class voltage_V_MAX(PhysicalQuantityGenerator):
+        '''voltage MAX generator for the triphase sensor. Expects to work on voltage-l1_V_MAX, voltage-l2_V_MAX and voltage-l3_V_MAX'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):    
+            return aggregated_data.content['voltage-l1_V_MAX'] + aggregated_data.content['voltage-l2_V_MAX'] + aggregated_data.content['voltage-l3_V_MAX']
+
+
+    # Generators for RPower
+    class rpower_VAr_AVG(PhysicalQuantityGenerator):
+        '''rpower AVG generator for the triphase sensor. Expects to work on rpower-l1_VAr_AVG, rpower-l2_VAr_AVG and rpower-l3_VAr_AVG'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):   # TODO:   dataSeries-> Points_dataSeries, aggregated_data -> Slot something
+            return aggregated_data.content['rpower-l1_VAr_AVG'] + aggregated_data.content['rpower-l2_VAr_AVG'] + aggregated_data.content['rpower-l3_VAr_AVG']
+
+    class rpower_VAr_MIN(PhysicalQuantityGenerator):
+        '''rpower MIN generator for the triphase sensor. Expects to work on rpower-l1_VAr_MIN, rpower-l2_VAr_MIN and rpower-l3_VAr_MIN'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):    
+            return aggregated_data.content['rpower-l1_VAr_MIN'] + aggregated_data.content['rpower-l2_VAr_MIN'] + aggregated_data.content['rpower-l3_VAr_MIN']
+    
+    class rpower_VAr_MAX(PhysicalQuantityGenerator):
+        '''rpower MAX generator for the triphase sensor. Expects to work on rpower-l1_VAr_MAX, rpower-l2_VAr_MAX and rpower-l3_VAr_MAX'''
+        @staticmethod
+        def generate(dataSeries, aggregated_data, start_Point, end_Point):    
+            return aggregated_data.content['rpower-l1_VAr_MAX'] + aggregated_data.content['rpower-l2_VAr_MAX'] + aggregated_data.content['rpower-l3_VAr_MAX']    
 
 
 #------------------------------------
@@ -112,10 +184,10 @@ class test_aggregators(unittest.TestCase):
         for slot in aggregated_dataTimeSeries:
             if i == 0:
                 self.assertEqual(str(slot), '''PhysicalDataTimeSlot: from 2016-03-25 10:00:00+01:00 to 2016-03-25 10:15:00+01:00 with span of 15m and coverage of 1.0''')
-                self.assertEqual(str(slot.data.content),'''{'voltage-l2_V_AVG': 225.25098735321004, 'power-l3_W_MIN': 239.921875, 'power-l1_W_MAX': 1397.734375, 'current-l2_A_AVG': 4.33984155812967, 'current-l1_A_AVG': 5.129787381841492, 'rpower-l1_VAr_AVG': -944.949067679558, 'power-l3_W_AVG': 513.0145029310386, 'power_W_AVG': 10, 'voltage-l1_V_AVG': 226.96192316719885, 'voltage-l3_V_AVG': 225.65243985509946, 'current-l3_A_AVG': 2.7271999970325416, 'rpower-l3_VAr_AVG': -161.74076312154696, 'power-l3_W_MAX': 1508.359375, 'power-l2_W_MIN': 763.359375, 'power-l1_W_AVG': 579.0542988645415, 'power-l2_W_MAX': 1786.484375, 'power-l2_W_AVG': 877.2142610497237, 'power-l1_W_MIN': 459.453125, 'rpower-l2_VAr_AVG': -255.91030723613812}''') 
+                self.assertEqual(str(slot.data.content),'''{'current-l1_A_MIN': 4.73419189453, 'power_W_MAX': 4692.578125, 'current-l2_A_AVG': 4.0533920211715415, 'power-l1_W_AVG': 540.6015902259898, 'power-l3_W_AVG': 470.55743272105127, 'voltage-l1_V_MIN': 225.48248291, 'current-l1_A_MAX': 7.78015136719, 'rpower-l3_VAr_AVG': -157.16330377842402, 'power_W_MIN': 1462.734375, 'power-l2_W_AVG': 819.5026008426315, 'rpower-l1_VAr_MIN': -984.765625, 'voltage-l2_V_AVG': 210.6090310856981, 'current_A_AVG': 11.355183299930056, 'voltage-l1_V_MAX': 228.475524902, 'current_A_MIN': 9.98733520507, 'voltage_V_AVG': 633.851065817629, 'rpower-l1_VAr_MAX': -832.109375, 'power-l3_W_MAX': 1508.359375, 'power-l1_W_MIN': 459.453125, 'current-l2_A_MAX': 8.64349365234, 'power-l1_W_MAX': 1397.734375, 'current-l1_A_AVG': 4.792555512310997, 'current_A_MAX': 27.026062011729998, 'current-l3_A_AVG': 2.509235766447517, 'power-l2_W_MAX': 1786.484375, 'voltage_V_MIN': 671.593444824, 'current-l2_A_MIN': 3.82629394531, 'voltage-l2_V_MAX': 227.123535156, 'voltage-l3_V_MAX': 226.735778809, 'rpower_VAr_AVG': -1278.5843967083001, 'voltage-l2_V_MIN': 223.11126709, 'rpower_VAr_MIN': -1558.984375, 'rpower-l2_VAr_MIN': -271.875, 'power-l3_W_MIN': 239.921875, 'rpower_VAr_MAX': -936.796875, 'rpower-l1_VAr_AVG': -882.3312162472556, 'voltage-l3_V_AVG': 211.01158331126413, 'rpower-l3_VAr_MIN': -302.34375, 'current-l3_A_MAX': 10.6024169922, 'power_W_AVG': 1830.6616237896726, 'rpower-l2_VAr_MAX': -138.125, 'voltage-l3_V_MIN': 222.999694824, 'power-l2_W_MIN': 763.359375, 'rpower-l2_VAr_AVG': -239.08987668262057, 'voltage_V_MAX': 682.3348388669999, 'voltage-l1_V_AVG': 212.23045142066678, 'current-l3_A_MIN': 1.42684936523, 'rpower-l3_VAr_MAX': 33.4375}''') 
             elif i == 1:
                 self.assertEqual(str(slot), '''PhysicalDataTimeSlot: from 2016-03-25 10:15:00+01:00 to 2016-03-25 10:30:00+01:00 with span of 15m and coverage of 1.0''')
-                self.assertEqual(str(slot.data.content),'''{'voltage-l2_V_AVG': 225.05988972978878, 'power-l3_W_MIN': 242.65625, 'power-l1_W_MAX': 2622.1875, 'current-l2_A_AVG': 6.159258524577058, 'current-l1_A_AVG': 6.836917453341555, 'rpower-l1_VAr_AVG': -947.703125, 'power-l3_W_AVG': 1022.2148435804556, 'power_W_AVG': 10, 'voltage-l1_V_AVG': 226.6195936414945, 'voltage-l3_V_AVG': 225.09531690809425, 'current-l3_A_AVG': 5.0118459065758305, 'rpower-l3_VAr_AVG': -127.13845494588334, 'power-l3_W_MAX': 3423.203125, 'power-l2_W_MIN': 763.046875, 'power-l1_W_AVG': 1037.8454871283664, 'power-l2_W_MAX': 2827.265625, 'power-l2_W_AVG': 1269.431423611111, 'power-l1_W_MIN': 508.90625, 'rpower-l2_VAr_AVG': -259.2868923611111}''')
+                self.assertEqual(str(slot.data.content),'''{'current-l1_A_MIN': 4.96215820312, 'power_W_MAX': 8872.65625, 'current-l2_A_AVG': 5.70124493517345, 'power-l1_W_AVG': 964.31665376672, 'power-l3_W_AVG': 953.5599027837332, 'voltage-l1_V_MIN': 224.033081055, 'current-l1_A_MAX': 12.7659606934, 'rpower-l3_VAr_AVG': -118.8273107709342, 'power_W_MIN': 1514.609375, 'power-l2_W_AVG': 1174.0341092769263, 'rpower-l1_VAr_MIN': -998.515625, 'voltage-l2_V_AVG': 210.58784131567256, 'current_A_AVG': 16.779769155152493, 'voltage-l1_V_MAX': 228.413879395, 'current_A_MIN': 10.259704589840002, 'voltage_V_AVG': 633.17181632653, 'rpower-l1_VAr_MAX': -854.921875, 'power-l3_W_MAX': 3423.203125, 'power-l1_W_MIN': 508.90625, 'current-l2_A_MAX': 13.1994628906, 'power-l1_W_MAX': 2622.1875, 'current-l1_A_AVG': 6.399747169290782, 'current_A_MAX': 39.8182678223, 'current-l3_A_AVG': 4.678777050688259, 'power-l2_W_MAX': 2827.265625, 'voltage_V_MIN': 667.559875488, 'current-l2_A_MIN': 3.86245727539, 'voltage-l2_V_MAX': 226.949768066, 'voltage-l3_V_MAX': 227.482421875, 'rpower_VAr_AVG': -1256.4383164087083, 'voltage-l2_V_MIN': 221.975952148, 'rpower_VAr_MIN': -1618.28125, 'rpower-l2_VAr_MIN': -316.953125, 'power-l3_W_MIN': 242.65625, 'rpower_VAr_MAX': -849.921875, 'rpower-l1_VAr_AVG': -891.5763121672595, 'voltage-l3_V_AVG': 210.56944651112713, 'rpower-l3_VAr_MIN': -302.8125, 'current-l3_A_MAX': 13.8528442383, 'power_W_AVG': 3091.9106658273795, 'rpower-l2_VAr_MAX': -81.875, 'voltage-l3_V_MIN': 221.550842285, 'power-l2_W_MIN': 763.046875, 'rpower-l2_VAr_AVG': -246.03469347051447, 'voltage_V_MAX': 682.846069336, 'voltage-l1_V_AVG': 212.01452849973037, 'current-l3_A_MIN': 1.43508911133, 'rpower-l3_VAr_MAX': 86.875}''')
             else:
                 raise Exception('Test failed')
             i +=1
