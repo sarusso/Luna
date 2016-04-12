@@ -10,6 +10,16 @@ from luna.aggregators.generators import PhysicalQuantityGenerator
 from luna.aggregators.components import DataTimeSeriesAggregatorProcess
 import os
 
+
+#------------------------------------
+# Logging
+#------------------------------------
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("luna")
+
+
+
 datasets_path= '/'.join(os.path.realpath(__file__).split('/')[0:-1]) + '/datasets/'
 
 #------------------------------------
@@ -182,12 +192,13 @@ class test_aggregators(unittest.TestCase):
         # Quick check results using string representations
         i = 0
         for slot in aggregated_dataTimeSeries:
+
             if i == 0:
                 self.assertEqual(str(slot), '''PhysicalDataTimeSlot: from 2016-03-25 10:00:00+01:00 to 2016-03-25 10:15:00+01:00 with span of 15m and coverage of 1.0''')
                 self.assertEqual(str(slot.data.content),'''{'current-l1_A_MIN': 4.73419189453, 'power_W_MAX': 4692.578125, 'current-l2_A_AVG': 4.0533920211715415, 'power-l1_W_AVG': 540.6015902259898, 'power-l3_W_AVG': 470.55743272105127, 'voltage-l1_V_MIN': 225.48248291, 'current-l1_A_MAX': 7.78015136719, 'rpower-l3_VAr_AVG': -157.16330377842402, 'power_W_MIN': 1462.734375, 'power-l2_W_AVG': 819.5026008426315, 'rpower-l1_VAr_MIN': -984.765625, 'voltage-l2_V_AVG': 210.6090310856981, 'current_A_AVG': 11.355183299930056, 'voltage-l1_V_MAX': 228.475524902, 'current_A_MIN': 9.98733520507, 'voltage_V_AVG': 633.851065817629, 'rpower-l1_VAr_MAX': -832.109375, 'power-l3_W_MAX': 1508.359375, 'power-l1_W_MIN': 459.453125, 'current-l2_A_MAX': 8.64349365234, 'power-l1_W_MAX': 1397.734375, 'current-l1_A_AVG': 4.792555512310997, 'current_A_MAX': 27.026062011729998, 'current-l3_A_AVG': 2.509235766447517, 'power-l2_W_MAX': 1786.484375, 'voltage_V_MIN': 671.593444824, 'current-l2_A_MIN': 3.82629394531, 'voltage-l2_V_MAX': 227.123535156, 'voltage-l3_V_MAX': 226.735778809, 'rpower_VAr_AVG': -1278.5843967083001, 'voltage-l2_V_MIN': 223.11126709, 'rpower_VAr_MIN': -1558.984375, 'rpower-l2_VAr_MIN': -271.875, 'power-l3_W_MIN': 239.921875, 'rpower_VAr_MAX': -936.796875, 'rpower-l1_VAr_AVG': -882.3312162472556, 'voltage-l3_V_AVG': 211.01158331126413, 'rpower-l3_VAr_MIN': -302.34375, 'current-l3_A_MAX': 10.6024169922, 'power_W_AVG': 1830.6616237896726, 'rpower-l2_VAr_MAX': -138.125, 'voltage-l3_V_MIN': 222.999694824, 'power-l2_W_MIN': 763.359375, 'rpower-l2_VAr_AVG': -239.08987668262057, 'voltage_V_MAX': 682.3348388669999, 'voltage-l1_V_AVG': 212.23045142066678, 'current-l3_A_MIN': 1.42684936523, 'rpower-l3_VAr_MAX': 33.4375}''') 
             elif i == 1:
                 self.assertEqual(str(slot), '''PhysicalDataTimeSlot: from 2016-03-25 10:15:00+01:00 to 2016-03-25 10:30:00+01:00 with span of 15m and coverage of 1.0''')
-                self.assertEqual(str(slot.data.content),'''{'current-l1_A_MIN': 4.96215820312, 'power_W_MAX': 8872.65625, 'current-l2_A_AVG': 5.70124493517345, 'power-l1_W_AVG': 964.31665376672, 'power-l3_W_AVG': 953.5599027837332, 'voltage-l1_V_MIN': 224.033081055, 'current-l1_A_MAX': 12.7659606934, 'rpower-l3_VAr_AVG': -118.8273107709342, 'power_W_MIN': 1514.609375, 'power-l2_W_AVG': 1174.0341092769263, 'rpower-l1_VAr_MIN': -998.515625, 'voltage-l2_V_AVG': 210.58784131567256, 'current_A_AVG': 16.779769155152493, 'voltage-l1_V_MAX': 228.413879395, 'current_A_MIN': 10.259704589840002, 'voltage_V_AVG': 633.17181632653, 'rpower-l1_VAr_MAX': -854.921875, 'power-l3_W_MAX': 3423.203125, 'power-l1_W_MIN': 508.90625, 'current-l2_A_MAX': 13.1994628906, 'power-l1_W_MAX': 2622.1875, 'current-l1_A_AVG': 6.399747169290782, 'current_A_MAX': 39.8182678223, 'current-l3_A_AVG': 4.678777050688259, 'power-l2_W_MAX': 2827.265625, 'voltage_V_MIN': 667.559875488, 'current-l2_A_MIN': 3.86245727539, 'voltage-l2_V_MAX': 226.949768066, 'voltage-l3_V_MAX': 227.482421875, 'rpower_VAr_AVG': -1256.4383164087083, 'voltage-l2_V_MIN': 221.975952148, 'rpower_VAr_MIN': -1618.28125, 'rpower-l2_VAr_MIN': -316.953125, 'power-l3_W_MIN': 242.65625, 'rpower_VAr_MAX': -849.921875, 'rpower-l1_VAr_AVG': -891.5763121672595, 'voltage-l3_V_AVG': 210.56944651112713, 'rpower-l3_VAr_MIN': -302.8125, 'current-l3_A_MAX': 13.8528442383, 'power_W_AVG': 3091.9106658273795, 'rpower-l2_VAr_MAX': -81.875, 'voltage-l3_V_MIN': 221.550842285, 'power-l2_W_MIN': 763.046875, 'rpower-l2_VAr_AVG': -246.03469347051447, 'voltage_V_MAX': 682.846069336, 'voltage-l1_V_AVG': 212.01452849973037, 'current-l3_A_MIN': 1.43508911133, 'rpower-l3_VAr_MAX': 86.875}''')
+                self.assertEqual(str(slot.data.content),'''{'current-l1_A_MIN': 4.96215820312, 'power_W_MAX': 8872.65625, 'current-l2_A_AVG': 5.699640351268045, 'power-l1_W_AVG': 964.0598380394166, 'power-l3_W_AVG': 953.2915566854815, 'voltage-l1_V_MIN': 224.033081055, 'current-l1_A_MAX': 12.7659606934, 'rpower-l3_VAr_AVG': -118.72267023945415, 'power_W_MIN': 1514.609375, 'power-l2_W_AVG': 1173.7198022850064, 'rpower-l1_VAr_MIN': -998.515625, 'voltage-l2_V_AVG': 210.49519544251942, 'current_A_AVG': 16.774708245197594, 'voltage-l1_V_MAX': 228.413879395, 'current_A_MIN': 10.259704589840002, 'voltage_V_AVG': 632.8933605279044, 'rpower-l1_VAr_MAX': -835.15625, 'power-l3_W_MAX': 3423.203125, 'power-l1_W_MIN': 508.90625, 'current-l2_A_MAX': 13.1994628906, 'power-l1_W_MAX': 2622.1875, 'current-l1_A_AVG': 6.397570106683291, 'current_A_MAX': 39.8182678223, 'current-l3_A_AVG': 4.677497787246258, 'power-l2_W_MAX': 2827.265625, 'voltage_V_MIN': 667.559875488, 'current-l2_A_MIN': 3.86245727539, 'voltage-l2_V_MAX': 226.949768066, 'voltage-l3_V_MAX': 227.482421875, 'rpower_VAr_AVG': -1255.8022510368125, 'voltage-l2_V_MIN': 221.975952148, 'rpower_VAr_MIN': -1618.28125, 'rpower-l2_VAr_MIN': -316.953125, 'power-l3_W_MIN': 242.65625, 'rpower_VAr_MAX': -830.15625, 'rpower-l1_VAr_AVG': -891.1710790467758, 'voltage-l3_V_AVG': 210.47687837363117, 'rpower-l3_VAr_MIN': -302.8125, 'current-l3_A_MAX': 13.8528442383, 'power_W_AVG': 3091.0711970099046, 'rpower-l2_VAr_MAX': -81.875, 'voltage-l3_V_MIN': 221.550842285, 'power-l2_W_MIN': 763.046875, 'rpower-l2_VAr_AVG': -245.90850175058262, 'voltage_V_MAX': 682.846069336, 'voltage-l1_V_AVG': 211.92128671175377, 'current-l3_A_MIN': 1.43508911133, 'rpower-l3_VAr_MAX': 86.875}''')
             else:
                 raise Exception('Test failed')
             i +=1

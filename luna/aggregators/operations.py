@@ -29,7 +29,7 @@ class AVG(Operation):
         weighted       = None
         
         for this_dataPoint in dataSeries:
-      
+            
             # Set if weighetd avg or not
             if weighted is None:
                 try:
@@ -58,7 +58,8 @@ class AVG(Operation):
                 if prev_dataPoint is None:
                     prev_dataPoint = this_dataPoint
                     continue
-                             
+                
+     
                 # If we have two points..
                 prev_dataPoint_validiy_region_start = prev_dataPoint.validity_region.start
                 prev_dataPoint_validiy_region_end   = prev_dataPoint.validity_region.end       
@@ -79,11 +80,25 @@ class AVG(Operation):
                 prev_dataPoint_validiy_region_end = prev_dataPoint_validiy_region_end if  this_dataPoint_validiy_region_start > prev_dataPoint_validiy_region_end else this_dataPoint_validiy_region_start
                 
                 # Set correct weight
-                prev_weight = (prev_dataPoint_validiy_region_end.operation_value - prev_dataPoint_validiy_region_start.operation_value)
-
+                if this_dataPoint_validiy_region_start < prev_dataPoint_validiy_region_end: 
+                    prev_weight = (this_dataPoint_validiy_region_start.operation_value - prev_dataPoint_validiy_region_start.operation_value)
+                else:
+                    prev_weight = (prev_dataPoint_validiy_region_end.operation_value - prev_dataPoint_validiy_region_start.operation_value)
+                    
                 if prev_weight<0:
-                    raise ConsistencyException('Got negative weight: {}'.format(prev_weight))
-            
+                    
+                    # TODO: use the "if prev_weight<=0:" and solve the conceptual problem
+                    #print '================================='
+                    #print 'this_dataPoint', this_dataPoint
+                    #print 'this_dataPoint_validiy_region_end', this_dataPoint_validiy_region_end
+                    #print 'this_dataPoint_validiy_region_start', this_dataPoint_validiy_region_start
+                    #print '---------------------------------'
+                    #print 'prev_dataPoint', prev_dataPoint
+                    #print 'prev_dataPoint_validiy_region_end', this_dataPoint_validiy_region_start
+                    #print 'prev_dataPoint_validiy_region_start', prev_dataPoint_validiy_region_start
+                    #print '================================='
+                    raise ConsistencyException('Got negative weight: {}. Boundary conditions: prev_dataPoint={}, this_dataPoint={}'.format(prev_weight, prev_dataPoint, this_dataPoint))
+                
                 # Compute
                 sum += ( prev_weight * prev_dataPoint.data.operation_value )
                 

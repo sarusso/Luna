@@ -318,6 +318,7 @@ class DataTimeSeriesAggregatorProcess(object):
         slot_end_dt        = None
         prev_dataTimePoint      = None
         filtered_dataTimeSeries = DataTimeSeries()
+        process_ended      = False
 
         # Ok, start running the aggregators in a streaming-fashion way,
         # so going trought all the data in the time series
@@ -344,12 +345,13 @@ class DataTimeSeriesAggregatorProcess(object):
                 #logger.debug print 'dataTimePoint.dt (disc): ', dataTimePoint.dt
                 continue
 
-            # Same concept for the end (TODO: save only 'next data time point and move away from here..?')
-            # TODO: also, handle end_dt if not set...
+            # Similar concept for the end
             if dataTimePoint.dt >= end_dt:
-                #logger.debug print 'dataTimePoint.dt (disc): ', dataTimePoint.dt
-                continue
-              
+                if process_ended:
+                    continue
+                else:
+                    process_ended = True
+
             # Here we manage all the cases according to start/end, missing slots etc.
             # We have also to create empty slots at the beginning, at the end and in the middle.
             # An empty slot will have every required value (according to DataSlots_labels) set to None.
@@ -406,6 +408,9 @@ class DataTimeSeriesAggregatorProcess(object):
                     
                     # Create a new filtered_dataTimeSeries as part of the 'create a new slot' procedure
                     filtered_dataTimeSeries = DataTimeSeries()
+                    
+                    # Append the previous dataprev_dataTimePoint to the new DataTimeSeries
+                    filtered_dataTimeSeries.append(prev_dataTimePoint)
 
                     logger.info('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
                     
@@ -414,10 +419,12 @@ class DataTimeSeriesAggregatorProcess(object):
             #----------------------------
             # Time series filtering
             #----------------------------
-            
-            # Append this point as it is the 'previous point' for the next slot
+        
+            # Append this point
             filtered_dataTimeSeries.append(dataTimePoint)
             
+            # ..and save as previous point
+            prev_dataTimePoint =  dataTimePoint           
 
 
         #----------------------------
