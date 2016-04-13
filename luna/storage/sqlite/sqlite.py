@@ -161,7 +161,7 @@ class SQLiteDataTimeStream(DataTimeStream):
 #-------------------------
 
 class SQLiteStorage(Storage):
-    def __init__(self, db_file=None, in_memory=False, right_to_initialize=False):
+    def __init__(self, db_file=None, in_memory=False, can_initialize=False):
         
         if in_memory:
             db_path = ':memory:'
@@ -181,7 +181,7 @@ class SQLiteStorage(Storage):
         self.conn = sqlite3.connect(db_path)
         
         # Right to initialize
-        self.right_to_initialize = right_to_initialize
+        self.can_initialize = can_initialize
 
 
 #-------------------------
@@ -195,13 +195,13 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
     # STRUCTURE
     #--------------------
 
-    def check_structure_for_DataTimePoints(self, sensor, right_to_initialize=False):
+    def check_structure_for_DataTimePoints(self, sensor, can_initialize=False):
         '''Check that the structure of the storage exists for a given sensor'''     
         # Check if right table exists:
         cur = self.conn.cursor()    
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='{}_DataTimePoints';".format(sensor.__class__.__name__))
         if not cur.fetchone():
-            if self.right_to_initialize or right_to_initialize:
+            if self.can_initialize or can_initialize:
                 logger.debug('Could not find table for sensor %s, creating it...', sensor.__class__.__name__)
                 self.initialize_structure_for_DataTimePoints(cur, sensor)
                 return True
@@ -216,13 +216,13 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
         cur.execute("CREATE TABLE {}_DataTimePoints(ts INTEGER NOT NULL, sid TEXT NOT NULL, {} PRIMARY KEY (ts, sid));".format(sensor.__class__.__name__, labels_list))              
 
 
-    def check_structure_for_DataTimeSlots(self, sensor, right_to_initialize=False):
+    def check_structure_for_DataTimeSlots(self, sensor, can_initialize=False):
         '''Check that the structure of the storage exists for a given sensor'''
         # Check if right table exists:
         cur = self.conn.cursor()    
         cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='{}_DataTimeSlots';".format(sensor.__class__.__name__))
         if not cur.fetchone():
-            if self.right_to_initialize or right_to_initialize:
+            if self.can_initialize or can_initialize:
                 logger.debug('Could not find table for sensor %s, creating it...', sensor.__class__.__name__)
                 self.initialize_structure_for_DataTimeSlots(cur, sensor)
                 return True
@@ -242,7 +242,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
     #--------------------
     #  PUT
     #--------------------    
-    def put(self, DataTimeSeries, sensor=None, trustme=False, right_to_initialize=False):
+    def put(self, DataTimeSeries, sensor=None, trustme=False, can_initialize=False):
   
         # If empty return immediately as we cannot make any consideration
         if DataTimeSeries.is_empty():
@@ -293,8 +293,8 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
                  
                 if not storage_structure_checked:
                     # Check structure for point of this sensorallowing to create if does not exists
-                    if not self.check_structure_for_DataTimePoints(sensor, right_to_initialize=right_to_initialize):
-                        raise StorageException('{}: Sorry, the DataTimePoints structure for the sensor {} is not found and I am not allowed to create it (right_to_initialize is set to "{}")'.format(self.__class__.__name__, sensor, right_to_initialize))
+                    if not self.check_structure_for_DataTimePoints(sensor, can_initialize=can_initialize):
+                        raise StorageException('{}: Sorry, the DataTimePoints structure for the sensor {} is not found and I am not allowed to create it (can_initialize is set to "{}")'.format(self.__class__.__name__, sensor, can_initialize))
                     storage_structure_checked = True
                 
                 labels_list = ', '.join([fix_label_to_sqlite(label) for label in sensor.Points_data_labels])
@@ -306,8 +306,8 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
                 
                 if not storage_structure_checked:
                     # Check structure for point of this sensorallowing to create if does not exists
-                    if not self.check_structure_for_DataTimeSlots(sensor, right_to_initialize=right_to_initialize):
-                        raise StorageException('{}: Sorry, the DataTimeSlots structure for the sensor {} is not found and I am not allowed to create it (right_to_initialize is set to "{}")'.format(self.__class__.__name__, sensor, right_to_initialize))
+                    if not self.check_structure_for_DataTimeSlots(sensor, can_initialize=can_initialize):
+                        raise StorageException('{}: Sorry, the DataTimeSlots structure for the sensor {} is not found and I am not allowed to create it (can_initialize is set to "{}")'.format(self.__class__.__name__, sensor, can_initialize))
                     storage_structure_checked = True
                 
                 labels_list = ', '.join([fix_label_to_sqlite(label) for label in sensor.Slots_data_labels])
@@ -360,7 +360,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
 
         # Check for data structure in the db
         if not trustme:
-            if not self.check_structure_for_DataTimePoints(sensor, right_to_initialize=False):
+            if not self.check_structure_for_DataTimePoints(sensor, can_initialize=False):
                 raise StorageException('{}: Sorry, the DataTimePoints structure for the sensor {} is not found.'.format(self.__class__.__name__, sensor))
 
         # Get column names
@@ -404,7 +404,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
 
         # Check for data structure in the db
         if not trustme:
-            if not self.check_structure_for_DataTimeSlots(sensor, right_to_initialize=False):
+            if not self.check_structure_for_DataTimeSlots(sensor, can_initialize=False):
                 raise StorageException('{}: Sorry, DataTimeSlots the structure for the sensor {} is not found.'.format(self.__class__.__name__, sensor))
 
         # Get column names

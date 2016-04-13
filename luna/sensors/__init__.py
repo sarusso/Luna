@@ -33,6 +33,8 @@ class Sensor(object):
     def Slots_type(self):
         raise NotImplementedError('{}: Slots_type not implemented'.format(self.__class__.__name__))
     
+    Points_validity_region_span = None
+    
 
 class TimeSensor(Sensor):
     ''' A time-based sensor is a sensor that produces only time events. A plausible example

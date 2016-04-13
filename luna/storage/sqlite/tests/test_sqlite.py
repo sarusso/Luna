@@ -96,7 +96,7 @@ class test_sqlite(unittest.TestCase):
 
         # Test put data with sensor and right to create structure AND get with sensor and without from_dt/to_dt
         # TODO: this is not correct unit test of the put and get. It is testing them at the same time!
-        dataTimeSeriesSQLiteStorage.put(dataTimeSeries, sensor=volumetricSensorV1_1, right_to_initialize=True)
+        dataTimeSeriesSQLiteStorage.put(dataTimeSeries, sensor=volumetricSensorV1_1, can_initialize=True)
         out_streamingDataTimeSeries  = dataTimeSeriesSQLiteStorage.get(sensor=volumetricSensorV1_1, cached=True)
         self.assertEqual(out_streamingDataTimeSeries, dataTimeSeries)
 
@@ -167,7 +167,7 @@ class test_sqlite(unittest.TestCase):
 
         # Test put data with sensor and right to create structure AND get with sensor and without from_dt/to_dt
         # TODO: this is not correct unit test of the put and get. It is testing them at the same time!
-        dataTimeSeriesSQLiteStorage.put(dataTimeSeries, sensor=volumetricSensorV1_1, right_to_initialize=True)
+        dataTimeSeriesSQLiteStorage.put(dataTimeSeries, sensor=volumetricSensorV1_1, can_initialize=True)
         out_streamingDataTimeSeries  = dataTimeSeriesSQLiteStorage.get(sensor=volumetricSensorV1_1, timeSlotSpan=TimeSlotSpan('60s'), cached=True)
         self.assertEqual(out_streamingDataTimeSeries, dataTimeSeries)
 

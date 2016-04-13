@@ -171,7 +171,7 @@ class test_aggregators(unittest.TestCase):
         to_dt   = dt(2016,3,25,10,32,0, tzinfo=sensor.timezone)
         
         # Load dataset
-        dataTimeSeriesSQLiteStorage = sqlite.DataTimeSeriesSQLiteStorage(in_memory=False, right_to_initialize=True, db_file=datasets_path + 'dataset1.sqlite')
+        dataTimeSeriesSQLiteStorage = sqlite.DataTimeSeriesSQLiteStorage(in_memory=False, can_initialize=True, db_file=datasets_path + 'dataset1.sqlite')
         out_streamingDataTimeSeries = dataTimeSeriesSQLiteStorage.get(sensor=sensor)
 
         dataTimeSeriesAggregatorProcess = DataTimeSeriesAggregatorProcess(timeSlotSpan      = TimeSlotSpan('15m'),

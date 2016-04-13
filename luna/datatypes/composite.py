@@ -747,7 +747,7 @@ class StreamingDataTimeSeries(DataTimeSeries):
 
     def __repr__(self):
         if self.__data:
-            return '{}, start={}, last seen={}'.format(self.__class__.__name__, self.__data[0], self.__data[-1])
+            return '{}, start={}, end={}'.format(self.__class__.__name__, self.__data[0], self.__data[-1])
         else:
             return '{}, start=NotImp, last seen=NotImp'.format(self.__class__.__name__)
 

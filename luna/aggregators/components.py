@@ -329,7 +329,7 @@ class DataTimeSeriesAggregatorProcess(object):
         callback_counter = 1
         
         for dataTimePoint in dataTimeSeries:
-            
+
             # Set start_dt if not already done
             if not start_dt:
                 start_dt = self.timeSlotSpan.timeInterval.round_dt(dataTimePoint.dt) if rounded else dataTimePoint.dt
@@ -349,8 +349,7 @@ class DataTimeSeriesAggregatorProcess(object):
             if dataTimePoint.dt >= end_dt:
                 if process_ended:
                     continue
-                else:
-                    process_ended = True
+
 
             # Here we manage all the cases according to start/end, missing slots etc.
             # We have also to create empty slots at the beginning, at the end and in the middle.
@@ -365,9 +364,7 @@ class DataTimeSeriesAggregatorProcess(object):
             # The following procedure works in general for slots at the beginning and in the middle.
             # The approach is to detect if the current slot is "outdated" and spin a new one if so.
 
-            
             if dataTimePoint.dt > slot_end_dt:
-                
                 # If the current slot is outdated:
                               
                 # 1) Add this last point to the dataTimeSeries:
@@ -413,6 +410,10 @@ class DataTimeSeriesAggregatorProcess(object):
                     filtered_dataTimeSeries.append(prev_dataTimePoint)
 
                     logger.info('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
+                    
+                    # If last slot mark process as ended:
+                    if dataTimePoint.dt >= end_dt:
+                        process_ended = True
                     
        
        
