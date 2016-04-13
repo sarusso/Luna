@@ -119,25 +119,25 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
 
     # Compute the coverage until the end point
     if prev_dataPoint_valid_until is not None:
-        if prev_dataPoint_valid_until < end_Point and prev_dataPoint_valid_until > start_Point:
+        if end_Point > prev_dataPoint_valid_until:
             if missing_coverage is not None:
                 missing_coverage += (end_Point - prev_dataPoint_valid_until).values[0]
             else:
                 missing_coverage = (end_Point - prev_dataPoint_valid_until).values[0]
-        else:
-            # No data at all:
-            return 0.0
-    else:
-        # No data at all:
-        return 0.0
-
+    
     # Convert missing_coverage_s_is in percentage
     if missing_coverage is not None:
         coverage = 1.0 - float(missing_coverage) / ( end_Point.values[0] - start_Point.values[0] ) 
-        if coverage <0 or coverage >1:
-            for item in dataSeries:
-                print item, missing_coverage
-            raise ConsistencyException('Got Negative coverage!! {}'.format(coverage))
+        
+        # Fix boundaries # TODO: understand better this part
+        if coverage < 0:
+            coverage = 0.0
+            #raise ConsistencyException('Got Negative coverage!! {}'.format(coverage))
+        if coverage > 1:
+            coverage = 1.0
+            #raise ConsistencyException('Got >1 coverage!! {}'.format(coverage))
+
+            
     else:
         coverage = 1.0
         

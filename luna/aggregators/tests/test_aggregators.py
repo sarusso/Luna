@@ -15,8 +15,8 @@ import os
 # Logging
 #------------------------------------
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("luna")
+#logging.basicConfig(level=logging.INFO)
+#logger = logging.getLogger("luna")
 
 
 
