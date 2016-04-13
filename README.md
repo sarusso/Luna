@@ -75,9 +75,10 @@ from luna.datatypes.dimensional import PhysicalData
 # Generate a point every 6 seconds for about 10 minutes
 dataTimeSeries = DataTimeSeries()
 for i in range(104):
-    data = PhysicalData( labels = ['temperature_C'], values = [20.6+i] ) 
-    physicalDataTimePoint = PhysicalDataTimePoint(t = 1436021994 + (i*6),
-                                                  tz="Europe/Rome", data=data)
+    data = PhysicalData( labels = ['temperature_C'], values = [20.0+i] ) 
+    physicalDataTimePoint = PhysicalDataTimePoint(t    = 1436021994 + (i*6),
+                                                  tz   = "Europe/Rome",
+                                                  data = data)
     dataTimeSeries.append(physicalDataTimePoint)
 
 print 'DEMO: Generated dataTimeSeries:', dataTimeSeries
@@ -106,8 +107,8 @@ print 'DEMO: Loaded dataTimeSeries (load forced):', dataTimeSeries
 # Aggregate data
 #------------------------------------
 from luna.spacetime.time import dt
-from_dt = dt(2015,07,04,17,0,0, tz=sensor.timezone)
-to_dt = dt(2015,07,04,17,10,0, tz=sensor.timezone)
+from_dt = dt(2015,7,4,17,0,0, tz=sensor.timezone)
+to_dt = dt(2015,7,4,17,10,0, tz=sensor.timezone)
 
 #------------------------------------
 # Initialize aggregator process
@@ -129,19 +130,17 @@ dataTimeSeriesAggregatorProcess.start(dataTimeSeries   = dataTimeSeries,
                                       rounded          = True,
                                       threaded         = False)
 
-
-
 #------------------------------------
 # Get results from the aggregation
 #------------------------------------  
 
-# Since points were generated every 6 seconds but their validity was only 5 secs, there will be no 100% coverage.
+# Since points were generated every 6 seconds but their validity was only 5 secs,
+# there will be no 100% coverage.
 
 results_dataTimeSeries = dataTimeSeriesAggregatorProcess.get_results()
 print 'DEMO: Getting results:'
 for item in results_dataTimeSeries:
     print ' First result:', item, 'data content:', item.data.content
-
 
 #------------------------------------
 # Store aggregated data
@@ -152,7 +151,11 @@ print 'DEMO: Stored results_dataTimeSeries: ok'
 #------------------------------------
 # Get aggregated data
 #------------------------------------
-results_dataTimeSeries =  dataTimeSeriesSQLiteStorage.get(sensor=sensor, from_dt=from_dt, to_dt=to_dt, timeSlotSpan=TimeSlotSpan('5m'))
+results_dataTimeSeries =  dataTimeSeriesSQLiteStorage.get(sensor       = sensor,
+                                                          from_dt      = from_dt,
+                                                          to_dt        = to_dt,
+                                                          timeSlotSpan = TimeSlotSpan('5m'))
+
 print 'DEMO: Loaded results_dataTimeSeries:', results_dataTimeSeries
 results_dataTimeSeries.force_load()
 print 'DEMO: Loaded dataTimeSeries (load forced):', results_dataTimeSeries
