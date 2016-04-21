@@ -164,9 +164,6 @@ print 'DEMO: Loaded dataTimeSeries (load forced):', results_dataTimeSeries
 
 # Documentation
 
-Coming soon...
-
-
 ## Data Types
 
 ### Dimensional Data Types
@@ -234,6 +231,15 @@ Dimensional data where the labels must be:
  a) PhysicalQuantity objects, or
  b) valid string representations of physical quantities (according to PhysicalQuantity objects)'''
 
+
+# Storages
+
+A storage is an object which must implement a put OR a get function to store or to load data. At the current stage, storages are intended to support only DataPoints or DataSlots. Storages must also handle the sensor ID, which is basically the primary ket to identify data coming from the same sensor.
+
+An interesting feature of the storages is that they can implement Luna's straming series, allowwing to the data to be processed (or stored) in a streming fashion way and therefore never loading the entire dataset in memory, allowing to scale up the processing.
+
+# Aggregators
+
 ## Operations and Generators ordering
 
 The aggregators use operations and aggregators to aggregate the data. The operations are applied to a single quanity to generate another quantity,
@@ -277,6 +283,9 @@ For example, if you modify your MyEnergySensor class to look like the following:
 
 then Luna will use your AVG operation ad your energy_kWh_TOT generator. Please note that the order of the Slots_data_labels defines the order of the
 operations/generators.
+
+
+# Analyzers
 
 # Demos
 
