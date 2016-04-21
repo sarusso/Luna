@@ -166,6 +166,26 @@ print 'DEMO: Loaded dataTimeSeries (load forced):', results_dataTimeSeries
 
 Coming soon...
 
+
+## Data Types
+
+### TimePoint
+The Time Point is one of the most basic data structures. As the name suggest it is a point in time. The time dimension in Luna is represented trought the epoch seconds using a float value, and the 't' label. However, the TimePoint
+supports as well time zones and the initialization using a date time argument (even if it is not a good practice for massive initializations, as the datetime is anyway converted to a epoch timestamp under the hood).
+
+Valid initalizations are:
+    
+    TimePoint(t=73637738)
+    TimePoint(t=73637738.987654) # Milliseconds precision
+    TimePoint(t=73637738, tz="Europe/Rome") # Time zone support
+    TimePoint(dt = dt(2015,2,27,13,54,32, tz='Europe/Rome')) # Inconsistent time zones (using Luna's dt for initalizing a datetime)
+    
+    
+Not valid ones are:
+
+    TimePoint(dt=datetime(2015,2,27,13,54,32)) # Datetime and no time zone set, ambiguous
+    TimePoint(dt=dt(2015,2,27,13,54,32, tz='Europe/London'), tz='Europe/Rome') # Inconsistent time zones (using Luna's dt for initalizing a datetime)
+
 ## Operations and Generators ordering
 
 The aggregators use operations and aggregators to aggregate the data. The operations are applied to a single quanity to generate another quantity,
