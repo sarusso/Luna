@@ -169,8 +169,27 @@ Coming soon...
 
 ## Data Types
 
-### TimePoint
-The Time Point is one of the most basic data structures. As the name suggest it is a point in time. The time dimension in Luna is represented trought the epoch seconds using a float value, and the 't' label. However, the TimePoint
+### Dimensional Data Types
+
+#### Space(Base):
+A Space. It is defined by its dimensions labels, cardinality and names
+
+#### Coordinates(Base):
+A coordinates list. If contextualized in a Space with labels, each coordinate will also have its own label and it will be accessible by label. In practical terms, by "contextualized in a Space" means to extend a Space object or to be base classes together with a Space object.'''
+
+#### Point(Coordinates, Space):
+A point in a n-dimensional space with some coordinates
+
+#### Region(Space):
+A Region in a n-dimensional space. It can be both floating or anchored. Shape and Span are mandatory. Anchor is optional.
+
+
+#### Slot(Region)
+A Slot is a particular type of region, which has an hyper-rectangular shape. It is basically an interval (https://en.wikipedia.org/wiki/Interval_(mathematics)#Multi-dimensional_intervals). In addition to the Span (which in this case is a SlotSpan) also start and end are required, and they must be Points referred to the space where the slot lives in. You can omit one of the triplet start-end-span and it will be automatically computed. Please not that the slot is always intended to be with left included, right excluded.
+
+
+#### TimePoint(Point)
+A point in a 1-dimensional space, the time. The Time Point is one of the most importan data structures in Luna, as the time is in our nature a very preferred dimension. The time dimension in Luna is represented trought the epoch seconds using a float value, and the 't' label. However, the TimePoint
 supports as well time zones and the initialization using a date time argument (even if it is not a good practice for massive initializations, as the datetime is anyway converted to a epoch timestamp under the hood).
 
 Valid initalizations are:
@@ -178,13 +197,42 @@ Valid initalizations are:
     TimePoint(t=73637738)
     TimePoint(t=73637738.987654) # Milliseconds precision
     TimePoint(t=73637738, tz="Europe/Rome") # Time zone support
-    TimePoint(dt = dt(2015,2,27,13,54,32, tz='Europe/Rome')) # Inconsistent time zones (using Luna's dt for initalizing a datetime)
+    TimePoint(dt = dt(2015,2,27,13,54,32, tz='Europe/Rome')) # Inconsistent time zones
+                                                             # (using Luna's dt for initalizing a datetime)
     
     
 Not valid ones are:
 
     TimePoint(dt=datetime(2015,2,27,13,54,32)) # Datetime and no time zone set, ambiguous
-    TimePoint(dt=dt(2015,2,27,13,54,32, tz='Europe/London'), tz='Europe/Rome') # Inconsistent time zones (using Luna's dt for initalizing a datetime)
+    TimePoint(dt=dt(2015,2,27,13,54,32, tz='Europe/London'), tz='Europe/Rome') # Inconsistent time zones
+                                                                               # (using Luna's dt for
+                                                                               # initalizing a datetime)
+
+
+####  SurfacePoint(Point):
+Point in a 2-dimensional space, the surface.
+
+#### SpacePoint(Point):
+Point in a 3-dimensional space, the space.
+
+#### TimeSlot(Slot):
+A slot in a 1-dimensional space, the time. it uses the TimeInterval object from the spacetime package. If the shape is set, the start and end has to be rounded to the time artithmetic since epoch, i.e. with a 1 hour TimeSlotType start and end must start at 0 minutes and 0 seconds. If the type is set, the end can be automatically computed.
+
+#### SurfaceSlot(Point):
+A slot in a 3-dimensional space, the space.
+
+#### SpaceSlot(Point):
+A slot  in a 3-dimensional space, the space.
+
+#### PhysicalSpace(Space):
+A space where phisical data lives in. Labels must be:
+ a) PhysicalQuantity objects, or
+ b) valid string representations of physical quantities (according to PhysicalQuantity objects)
+
+#### PhysicalData(Coordinates, PhysicalSpace):
+Dimensional data where the labels must be:
+ a) PhysicalQuantity objects, or
+ b) valid string representations of physical quantities (according to PhysicalQuantity objects)'''
 
 ## Operations and Generators ordering
 
