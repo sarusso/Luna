@@ -23,15 +23,22 @@ import os
 datasets_path= '/'.join(os.path.realpath(__file__).split('/')[0:-1]) + '/datasets/'
 
 #------------------------------------
-# Define test sensor
+# Define test sensors
 #------------------------------------
+
+class SimpleSensor(PhysicalDataTimeSensor):
+    type_ID = 1
+    Points_data_labels = ['temp_C']
+    Points_validity_region_span = TimeSlotSpan('1m')
+    Slots_data_labels =  ['temp_C_AVG', 'temp_C_MIN', 'temp_C_MAX']
+    timezone = 'Europe/Rome'
 
 class EnergyElectricExtendedTriphase(PhysicalDataTimeSensor):
 
     # Assign unique type_ID to this sensor type
     type_ID = 5
 
-    # Set Points expected lables
+    # Set Points expected labels
     Points_data_labels = [ "power-l1_W", 
                            "current-l1_A", 
                            "voltage-l1_V",
@@ -162,6 +169,57 @@ class test_aggregators(unittest.TestCase):
     def setUp(self):       
         pass
 
+    def test_Simple_Aggregation(self):   
+
+        sensor = SimpleSensor('084EB18E44FFA/7-MB-1')
+        from_dt = dt(2016,3,25,9,58,0, tzinfo=sensor.timezone) # last was at 2016-03-25T14:09:45+00:00
+        to_dt   = dt(2016,3,25,10,32,0, tzinfo=sensor.timezone)
+
+        dataTimeSeries = DataTimeSeries()
+        slider_dt = from_dt
+        while slider_dt < to_dt:
+            
+            data = PhysicalData( labels = ['temp_C'], values = [25.5] ) 
+            physicalDataTimePoint = PhysicalDataTimePoint(dt   = slider_dt,
+                                                          data = data,
+                                                          validity_region_span = sensor.Points_validity_region_span)
+            dataTimeSeries.append(physicalDataTimePoint)
+            slider_dt = slider_dt + TimeSlotSpan('1m')
+            
+        dataTimeSeriesAggregatorProcess = DataTimeSeriesAggregatorProcess(timeSlotSpan      = TimeSlotSpan('15m'),
+                                                                          Sensor            = sensor,
+                                                                          data_to_aggregate = PhysicalDataTimePoint)
+
+
+        # Aggregate
+        dataTimeSeriesAggregatorProcess.start(dataTimeSeries = dataTimeSeries,
+                                              start_dt       = from_dt,
+                                              end_dt         = to_dt,
+                                              rounded        = True,
+                                              threaded       = False)
+        
+        # Get results
+        aggregated_dataTimeSeries = dataTimeSeriesAggregatorProcess.get_results(until=None)
+
+        # Quick check results using string representations
+        i = 0
+        for slot in aggregated_dataTimeSeries:
+
+            if i == 0:
+                self.assertEqual(str(slot), '''PhysicalDataTimeSlot: from 2016-03-25 10:00:00+01:00 to 2016-03-25 10:15:00+01:00 with span of 15m and coverage of 1.0''')
+                self.assertEqual(str(slot.data.content),'''{'temp_C_MAX': 25.5, 'temp_C_AVG': 25.5, 'temp_C_MIN': 25.5}''') 
+            elif i == 1:
+                self.assertEqual(str(slot), '''PhysicalDataTimeSlot: from 2016-03-25 10:15:00+01:00 to 2016-03-25 10:30:00+01:00 with span of 15m and coverage of 1.0''')
+                self.assertEqual(str(slot.data.content),'''{'temp_C_MAX': 25.5, 'temp_C_AVG': 25.5, 'temp_C_MIN': 25.5}''')
+            else:
+                raise Exception('Test failed')
+            i +=1
+                
+        if i != 2:
+            raise Exception('Test failed')
+
+
+
 
     def test_Extended_Aggregation(self):    
 
@@ -189,7 +247,7 @@ class test_aggregators(unittest.TestCase):
         # Get results
         aggregated_dataTimeSeries = dataTimeSeriesAggregatorProcess.get_results(until=None)
         
-        # Quick check results using string representations
+        # Quick check of results using string representations
         i = 0
         for slot in aggregated_dataTimeSeries:
 
