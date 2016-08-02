@@ -169,6 +169,38 @@ def s_from_dt(dt):
     return  ( calendar.timegm(dt.utctimetuple()) + microseconds_part)
 
 
+
+#----------------------------
+# Utilities
+#----------------------------
+
+class dt_range(object):
+
+    def __init__(self, from_dt, to_dt, timeSlotSpan):
+
+        self.from_dt      = from_dt
+        self.to_dt        = to_dt
+        self.timeSlotSpan = timeSlotSpan
+
+    def __iter__(self):
+        self.current_dt = self.from_dt
+        return self
+
+    def __next__(self):
+
+        # Iterator logic
+        if self.current_dt > self.to_dt:
+            raise StopIteration
+        else:
+            prev_current_dt = self.current_dt
+            self.current_dt = self.current_dt + self.timeSlotSpan
+            return prev_current_dt
+
+    # Python 2.x
+    def next(self):
+        return self.__next__()
+
+
 #----------------------------
 # Time Span
 #----------------------------
