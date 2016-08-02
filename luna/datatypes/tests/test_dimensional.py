@@ -221,37 +221,32 @@ class test_dimensional(unittest.TestCase):
         self.assertEqual(str(timePoint.dt), '1972-05-02 07:55:38+01:00')
         self.assertEqual(str(timePoint.tz), 'Europe/Rome')
 
-
-        # Init with timezone-naive datetime (UTC forced)
+        # Init with Timezone-naive datetime not allowed (not UTC forced)
         timestamp_dt = datetime(2015,2,27,13,54,32)
-        timePoint = TimePoint(t=timestamp_dt)
-        self.assertEqual(timePoint.t, 1425045272)
-        self.assertEqual(timePoint.dt, dt(2015,2,27,13,54,32, tzinfo='UTC'))
-        self.assertEqual(str(timePoint.tz), 'UTC')
-               
+        with self.assertRaises(InputException):
+            _ = TimePoint(dt=timestamp_dt)
+    
         # Init with datetime on UTC
         timestamp_dt = dt(2015,2,27,13,54,32, tzinfo='UTC')
-        timePoint = TimePoint(t=timestamp_dt)
+        timePoint = TimePoint(dt=timestamp_dt)
         self.assertEqual(timePoint.t, 1425045272)
         self.assertEqual(timePoint.dt, timestamp_dt)
         self.assertEqual(str(timePoint.tz), 'UTC')
 
         # Init with datetime on Europe/Rome
-        timestamp_dt = dt(2015,2,27,13,54,32, tzinfo='Europe/Rome')
-        timePoint = TimePoint(t=timestamp_dt)
+        timestamp_dt = dt(2015,2,27,13,54,32, tz='Europe/Rome')
+        timePoint = TimePoint(dt=timestamp_dt)
         self.assertEqual(timePoint.t, 1425041672)
         self.assertEqual(timePoint.dt, timestamp_dt)
         self.assertEqual(str(timePoint.tz), 'Europe/Rome')
 
-        # Init with datetime forcing another timezone
-        timePoint = TimePoint(t=dt(2015,2,27,13,54,32, tzinfo='Europe/London'), tz='Europe/Rome')
-        self.assertEqual(timePoint.t, 1425045272)
-        self.assertEqual(str(timePoint.dt), '2015-02-27 14:54:32+01:00')
-        self.assertEqual(str(timePoint.tz), 'Europe/Rome')     
+        # Init with datetime on another timezone not allowed (not forcing another timezone)
+        with self.assertRaises(InputException):
+            _ = TimePoint(dt=dt(2015,2,27,13,54,32, tz='Europe/London'), tz='Europe/Rome')
 
         # Init with datetime with also microseconds
         timestamp_dt = dt(2015,2,27,13,54,32,566879, tzinfo='UTC')
-        timePoint = TimePoint(t=timestamp_dt)  
+        timePoint = TimePoint(dt=timestamp_dt)
         self.assertEqual(timePoint.t, 1425045272.566879)
         self.assertEqual(timePoint.dt, timestamp_dt)
         self.assertEqual(str(timePoint.tz), 'UTC')
@@ -261,8 +256,8 @@ class test_dimensional(unittest.TestCase):
         pass
 
     def test_TimeSlot(self):
-        start_timePoint = TimePoint(t=dt(2015,2,27,13,0,0, tzinfo='UTC'))
-        end_timePoint = TimePoint(t=dt(2015,2,27,14,0,0, tzinfo='UTC'))
+        start_timePoint = TimePoint(dt=dt(2015,2,27,13,0,0, tzinfo='UTC'))
+        end_timePoint = TimePoint(dt=dt(2015,2,27,14,0,0, tzinfo='UTC'))
         
         # Test basic behaviour with no span
         timeSlot = TimeSlot(start=start_timePoint, end=end_timePoint)

@@ -673,6 +673,11 @@ class TimePoint(Point):
     
     def __init__(self, *args, **kwargs):
 
+        if 'trustme' in kwargs:
+            trustme = kwargs['trustme']
+        else:
+            trustme = False
+        
         # Handle timezone. If no timezone is given, no timezone is storead and UTC is assumed
         if 'tz' in kwargs:
             
@@ -691,35 +696,49 @@ class TimePoint(Point):
             # and then of course: sys.getsizeof(1) -> 24 Bytes (Python uses float double precision everywhere..)
             
             self._tz = kwargs.pop('tz')
-            
+
+        # Try to get value from 't' arg, if successful set labels as well
         try:
             kwargs['values'] = [kwargs.pop('t')]
             kwargs['labels'] = ['t']
+
         except KeyError:
-            pass
+            try:
+                # Otherwise try to get value from 'dt' arg, if successful convert to t and then set labels as well
+                kwargs['values'] = [kwargs.pop('dt')]
+            except KeyError:
+                pass
+            else:
+                if PERFORMANCE_TIPS_ENABLED:
+                    logger.info("TimePoint: You are initializing a TimePoint with a DateTime, this is not performant, use int/float epoch")
 
-        if ('values' not in kwargs) or (not kwargs['values']):
-            raise InputException('TimePoint: Got no values at all. My kwargs: {}'.format(kwargs))
+                if not trustme:
 
-        # Convert datetime to seconds in case (TODO# not clean approach at all!! maybe use 'dt' label? Mybe ysut drop support?):
-        t = kwargs['values'][0]
-        if isinstance(t, datetime):
-            if PERFORMANCE_TIPS_ENABLED:
-                logger.info("TimePoint: You are initializing a TimePoint with a DateTime, this is not performant, use int/float epoch")       
+                    # Check time zone has been passed
+                    if not kwargs['values'][0].tzinfo:
+                        raise InputException('Sorry, no time zone set for datetime, this is not allowed in Luna (got tzinfo={})'.format(kwargs['values'][0].tzinfo))
+                    
+                    # Check for coherence of time zone
+                    try:
+                        if self._tz != kwargs['values'][0].tzinfo:
+                            raise InputException('Error, explicitly set time zone ({}) differs from datetime timezone ({})'.format(self._tz, kwargs['values'][0].tzinfo))
+                    except AttributeError:
+                        self._tz = kwargs['values'][0].tzinfo
+    
+                # Now convert and set labels
+                kwargs['values'] = [s_from_dt(kwargs['values'][0])]
+                kwargs['labels'] = ['t']
 
-            # Get timezone from the DatetTime if any, and if not already set explicitly with tz arg, use it as reference tz
-            if t.tzinfo:
-                tz = str(t.tzinfo) 
-                try:
-                    _ = self._tz
-                except AttributeError:
-                    self._tz = tz
-            # Set internal epoch timestamp    
-            t = s_from_dt(t)
-
-        # Prepare args and kwargs for Point constructor
-        kwargs['values'] = [t]
-        kwargs['labels'] = ['t']
+        else:
+            if not trustme:
+                # Check for no double assignment
+                if 'dt' in kwargs:
+                        raise InputException('Error: double time assignment (got both dt and t)')
+        
+        # Check for everything ok
+        if not trustme:
+            if ('values' not in kwargs) or (not kwargs['values']):
+                raise InputException('TimePoint: Got no values at all. My kwargs: {}'.format(kwargs))
 
         # Call Point init
         super(TimePoint, self).__init__(*args, **kwargs)
