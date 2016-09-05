@@ -53,7 +53,7 @@ class test_dimensional(unittest.TestCase):
         self.assertFalse(point1.is_compatible_with(point5))
         self.assertFalse(point1.is_compatible_with(point6))
         with self.assertRaises(InputException):
-            self.assertFalse(point1.is_compatible_with(point5, raises=True))
+            point1.is_compatible_with(point5, raises=True)
  
         # Test labels and values:
         self.assertEqual(point1.labels,["a", "b"]) 
@@ -74,32 +74,39 @@ class test_dimensional(unittest.TestCase):
         with self.assertRaises(ValueError):
             point1.valueforlabel('g')
   
-        # Test content:
-        point7 = Point(label_a=2, label_b=5, label_c=8)
-        self.assertEqual(point7.content.a, 2)
-        self.assertEqual(point7.content.b, 5)
-        self.assertEqual(point7.content.c, 8)
-        self.assertEqual(str(point7.content), str({'a': 2, 'c': 8, 'b': 5}))
-        self.assertEqual(point7.content.a, 2)
-        self.assertEqual(point7.content.b, 5)
-        self.assertEqual(point7.content.c, 8)
         
-        tot = 0
+
+        # Test content:
+        point7   = Point({'a':2, 'b':5, 'c':8})
+        self.assertEqual(point7.content.a, 2)
+        self.assertEqual(point7.content.b, 5)
+        self.assertEqual(point7.content.c, 8)
+
+        # Test content equality checks
+        self.assertEqual(point7.content, {'a': 2, 'c': 8, 'b': 5})
+        self.assertEqual(point7.content, {'a': 2, 'b': 5, 'c': 8})
+        self.assertEqual(point7.content, Point({'a':2, 'b':5, 'c':8}).content)
+        
+        
+        # Test content Un-equality checks
+        self.assertNotEqual(point7.content, {'a': 2, 'c': 75, 'b': 5})
+        self.assertNotEqual(point7.content, {'a': 2, 'c': 8, 'b': 5, 'd': 6})
+        self.assertNotEqual(point7.content, {'a': 2, 'b': 5})
+        self.assertNotEqual(point7.content, Point({'a': 2, 'c': 75, 'b': 5}).content)
+        self.assertNotEqual(point7.content, Point({'a': 2, 'c': 8, 'b': 5, 'd': 6}).content)
+        self.assertNotEqual(point7.content, Point({'a': 2, 'b': 5}).content)
+
+        # Test Point iterator
+        content = {}
         for item in point7.content:
-            if tot == 0:
-                self.assertEqual(item, {'a': 2})
-            if tot == 1:
-                self.assertEqual(item, {'b': 5})
-            if tot == 2:
-                self.assertEqual(item, {'c': 8})
-            tot +=1                
-        self.assertEqual(tot,3)
+            content.update(item)
+        self.assertEqual(content, {'a': 2, 'c': 8, 'b': 5})
 
         # Test sum and subtraction:
-        point8 = Point(label_a=12,label_b=5,label_c=3)
-        point9 = Point(label_a=8,label_b=3,label_c=1)
-        
-        self.assertEquals((point8-point9).values,[4,2,2])
+        point8 = Point({'a':12, 'b':5 , 'c':3})
+        point9 = Point({'a':8, 'b':3 , 'c':1})
+
+        self.assertEqual((point8-point9).values,[4,2,2])
 
     def test_Slot(self):
 
@@ -168,7 +175,7 @@ class test_dimensional(unittest.TestCase):
         # TODO: Missing tests with type (the tests are in test_TimeSlot), we should define a TestSlotType SlotType mock or something...
         
         # Test deltas
-        self.assertEquals(slot1.deltas, [4,5])
+        self.assertEqual(slot1.deltas, [4,5])
         
         # Not anchored Slot raise an error:
         with self.assertRaises(InputException):
@@ -342,15 +349,15 @@ class test_dimensional(unittest.TestCase):
             _ = SlotSpan()
             
         with self.assertRaises(InputException):  
-            _ = SlotSpan(start=Point(label_a=2,label_b=1), end=Point(label_a=5,label_z=5)) # label_z is wrong
+            _ = SlotSpan(start=Point({'a': 1, 'b':1}), end=Point({'a': 5, 'z':5})) # label_z is wrong
         
         # Initialize the SlotSpan
         slotSpan1 = SlotSpan(value=[5,5])
-        slotSpan2 = SlotSpan(start=Point(label_a=2,label_b=1), end=Point(label_a=5,label_b=5))
+        slotSpan2 = SlotSpan(start=Point({'a': 2, 'b':1}), end=Point({'a': 5, 'b':5}))
         
         # TODO: with the following two we are actually indirectly testing the Point subtraction, move somewhere else..
-        slotSpan3 = SlotSpan(start=Point(label_a=5,label_b=5), end=Point(label_a=5,label_b=5))
-        slotSpan4 = SlotSpan(start=Point(label_a=8,label_b=10), end=Point(label_a=5,label_b=5))
+        slotSpan3 = SlotSpan(start=Point({'a':5, 'b':5}), end=Point({'a': 5, 'b':5}))
+        slotSpan4 = SlotSpan(start=Point({'a':8, 'b':10}), end=Point({'a': 5, 'b':5}))
         
         # Test wrong Init
         

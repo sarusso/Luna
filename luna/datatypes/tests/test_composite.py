@@ -14,12 +14,12 @@ class test_dataPoint(unittest.TestCase):
     def test_init(self):
         
         with self.assertRaises(InputException):
-            _ = DataPoint(label_g=1000, data=None)
+            _ = DataPoint({'g': 1000}, data=None)
          
                     
-        dataPoint1 = DataPoint(label_g=1000, data='string_data1')
-        dataPoint2 = DataPoint(label_g=1000, data='string_data2')
-        dataPoint3 = DataPoint(label_g=1000, data='string_data3', validity_region_span=SlotSpan(value=[60]))
+        dataPoint1 = DataPoint({'g': 1000}, data='string_data1')
+        dataPoint2 = DataPoint({'g': 1000}, data='string_data2')
+        dataPoint3 = DataPoint({'g': 1000}, data='string_data3', validity_region_span=SlotSpan(value=[60]))
         
         self.assertEqual(dataPoint1.data,'string_data1')
         self.assertEqual(dataPoint2.data,'string_data2')
@@ -31,10 +31,10 @@ class test_dataPoint(unittest.TestCase):
         
         # TODO: here we are indirectly testing the valitiy region, which is the slot
         self.assertTrue(isinstance(dataPoint3.validity_region, Slot))
-        self.assertEqual(dataPoint3.validity_region.start, Point(label_g=970))
-        self.assertEqual(dataPoint3.validity_region.center, Point(label_g=1000))
-        self.assertEqual(dataPoint3.validity_region.anchor, Point(label_g=1000))
-        self.assertEqual(dataPoint3.validity_region.end, Point(label_g=1030))
+        self.assertEqual(dataPoint3.validity_region.start, Point({'g': 970}))
+        self.assertEqual(dataPoint3.validity_region.center, Point({'g': 1000}))
+        self.assertEqual(dataPoint3.validity_region.anchor, Point({'g': 1000}))
+        self.assertEqual(dataPoint3.validity_region.end, Point({'g': 1030}))
         
         
         
@@ -53,7 +53,7 @@ class test_dataTimePoint(unittest.TestCase):
             _ = DataTimePoint(t=1000, data=None)
 
         with self.assertRaises(InputException):
-            _ = DataTimePoint(label_g=1000, data='string_data')     
+            _ = DataTimePoint({'g': 1000}, data='string_data')     
                     
         dataTimePoint1 = DataTimePoint(t=1000, data='string_data1')
         dataTimePoint2 = DataTimePoint(t=1000, data='string_data2')

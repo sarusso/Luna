@@ -103,9 +103,9 @@ class test_sqlite(unittest.TestCase):
         # Test get of no data:
         out_streamingDataTimeSeries  = dataTimeSeriesSQLiteStorage.get(sensor=volumetricSensorV1_2, cached=True)
 
-        # We can check the equality again a simple DataTimeSeries
+        # We can check the equality against a simple DataTimeSeries
         empyt_dataTimeSeries = DataTimeSeries()
-        self.assertNotEqual(out_streamingDataTimeSeries, empyt_dataTimeSeries)
+        self.assertEqual(out_streamingDataTimeSeries, empyt_dataTimeSeries)
 
         # The following test is just for confirm of the above steps. Should not be here in a proper unittesting approach.
         self.assertNotEqual(out_streamingDataTimeSeries, dataTimeSeriesSQLiteStorage.get(sensor=volumetricSensorV1_1, cached=True))
@@ -174,9 +174,9 @@ class test_sqlite(unittest.TestCase):
         # Test get of no data:
         out_streamingDataTimeSeries  = dataTimeSeriesSQLiteStorage.get(sensor=volumetricSensorV1_2, timeSlotSpan=TimeSlotSpan('60s'), cached=True)
 
-        # We can check the equality again a simple DataTimeSeries
+        # We can check the equality against a simple DataTimeSeries
         empyt_dataTimeSeries = DataTimeSeries()
-        self.assertNotEqual(out_streamingDataTimeSeries, empyt_dataTimeSeries)
+        self.assertEqual(out_streamingDataTimeSeries, empyt_dataTimeSeries)
 
         # The following test is just for confirm of the above steps. Should not be here in a proper unittesting approach.
         self.assertNotEqual(out_streamingDataTimeSeries, dataTimeSeriesSQLiteStorage.get(sensor=volumetricSensorV1_1, timeSlotSpan=TimeSlotSpan('60s'), cached=True))

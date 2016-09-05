@@ -349,8 +349,30 @@ class PhysicalDataTimeSlot(TimeSlot, PhysicalDataSlot):
 
 
 class Set(object):
-    '''An unordered ensemble of Points or Regions (or Slots).'''
-    pass
+    '''An unordered ensemble of Points or Regions (or Slots). This is the base class for data ensables in Luna.'''
+
+    # Un-implement operators which acts on the memory address as are meaningless in this context
+    def __eq__(self, other):
+        raise NotImplementedError()
+    def __ne__(self, other):
+        raise NotImplementedError()    
+    def __gt__(self, other):
+        raise NotImplementedError()
+    def __ge__(self, other):
+        raise NotImplementedError()
+    def __lt__(self, other):
+        raise NotImplementedError()
+    def __le__(self, other):
+        raise NotImplementedError()
+
+    # ..and Un-implement iterator
+    def __iter__(self):
+        raise NotImplementedError('Iterator is not implemented')        
+    def __next__(self):
+        raise NotImplementedError('Iterator is not implemented')
+    def next(self):
+        raise NotImplementedError('Iterator is not implemented')
+
 
 class DataSet(Set):
     '''An unordered ensemble of DataPoints or DataRegions (or DataSlots).'''
@@ -408,8 +430,8 @@ class DataTimeSeries(TimeSeries):
             return False        
         return ((self._data == other._data) and (self.tz == other.tz))
 
-    def __neq__(self, other):
-        return not self.__eq(other)
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def __len__(self):
         return len(self._data)

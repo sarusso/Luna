@@ -39,6 +39,11 @@ class Base(object):
             if len(kwargs) != 0:
                 raise InputException('{}: Unhandled args: {}'.format(self.classname, kwargs))
 
+            # If we are have both lables and values, check their consistency        
+            if self.has_labels and self.has_values:
+                if len(self._labels) != len(self._values):
+                    raise InputException("labels and values have different length, got labels={} and values={}".format(self._labels, self._values))
+
     # Who we are, do we have labels?
     @property 
     def has_labels(self):
@@ -95,7 +100,7 @@ class Base(object):
     def __le__(self, other):
         raise NotImplementedError()
 
-    # ..and Un-implement iterator
+    # ..and Un-implement iterator to avoid misunderstandings
     def __iter__(self):
         raise NotImplementedError('Iterator is not implemented')        
     def __next__(self):
@@ -132,7 +137,7 @@ class Base(object):
         else:
             return True
 
-    # Compatibility check 
+    # Compatibility check
     def is_compatible_with(self, other, raises=False):
         '''Check compatibility with 'dimensional' objects (Spaces, Coordintaes, Regions, Points, Slots...).'''
         if not type(self) is type(other):
@@ -193,7 +198,31 @@ class Base(object):
             
             def __repr__(self):
                 return str({label:self.linked.valueforlabel(label) for label in self.linked.labels})  
-        
+
+            # Define equality and not-equality for the content    
+            def __eq__(self,other):
+                if isinstance(other, dict):
+                    # Check that every item is present in the 'other' dict
+                    for i, item in enumerate(self.linked.labels):
+                        if item in other:
+                            if  (not self.linked.values[i] == other[item]):
+                                return False
+                        else:
+                            return False
+                    # Now check that lengths are the same
+                    if not len(other) == len(self.linked.labels):
+                        return False
+                    else:
+                        return True
+                # TODO: improve this check
+                elif (other.__class__.__name__ == 'Content'):
+                    return self.linked == other.linked
+                else:
+                    raise InputException('Sorry, I cannot compare with {}. Only Point.Content (accessible via Point.content) and Dict are supported)'.format(other.__class__.__name__))
+
+            def __ne__(self,other):
+                return (not self.__eq__(other))
+                    
         return Content(linked=self)
     
     # Get item
@@ -263,61 +292,24 @@ class Space(Base):
 
 
 class Coordinates(Base):
-    '''A coordinates list. If contextualized in a Space with labels, each coordinate will also have its own label and it will be accessible by label.
-    In practical terms, by "contextualized in a Space" means to extend a Space object or to be base classes together with a Space object.'''
-
+    '''A coordinates list. If used together with the Space object (as base classes for another object), 
+    each coordinate will also have its own label (and it will be accessible by label). 
+    Please note that you must extend first the coordinates, then the Space (i.e. Point(Coordinates, Space)'''
+    
     def __init__(self, **kwargs):
-       
-        # Handle arguments
-        if ('values' not in kwargs) and ('labels' not in kwargs):
-            # Smart init  
-            smartinit = True
-            _labels = []
-            _values = []
-             
-            for arg in kwargs:
-                if arg.startswith('label_'):
-                    label_name = arg[6:]
-                    _labels.append(label_name)
-                    _values.append(kwargs[arg])
-             
-            if not _values:         
-                raise InputException('You are not using the labels/values args but I did not neither find any smart label_ keyword. Got keywords: {}'.format(kwargs))
-             
-            # At the end, remove the processed args from the kwargs:
-            for label in _labels:
-                kwargs.pop('label_'+label)
-            
-            # Assign the values to this object..
-            self._values = _values
-            
-            # ..and add back the labels into the kwargs (in case of an override, it is fine)
-            kwargs['labels'] = _labels
-            
-            # Warn for  performance at the end
-            if PERFORMANCE_TIPS_ENABLED:
-                logger.info("You are initializing DimensionalData without labels but using smart inits. This slows down, use labels and values.") 
-
-        else:
-            smartinit = False       
-            # Set values
-            self._values = kwargs.pop('values', [])
-            if not isinstance(self._values,list):
-                raise InputException('I got values which are not a list (got "{}" of type "{}")'.format(self._values, type(self._values)))
-
-        # Check that values have been set somehow
-        if not self.values:
-            raise InputException('{}: Got No values'.format(self.classname))
+           
+        # Set values
+        self._values = kwargs.pop('values', [])
 
         # Call parent constructor
         super(Coordinates, self).__init__(**kwargs)
 
-        # Trick to bypass the impossibility of popping the 'label' kwarg from the Space object init
+        # Trick to bypass the impossibility of popping the 'labels' kwarg from the Space object init
         # http://stackoverflow.com/questions/8972866/correct-way-to-use-super-argument-passing     
-        if self.has_labels:
-            kwargs.pop('labels', None)
+        #if self.has_labels:
+        #    kwargs.pop('labels', None)
         
-        # Trustme swithch        
+        # Trustme switch        
         trustme = kwargs['trustme'] if 'trustme' in kwargs else False
 
         # Consistency checks
@@ -326,21 +318,19 @@ class Coordinates(Base):
             # Check that values are set       
             if not self._labels:
                 raise InputException("Got no values")
+            
+            # Check that values is a list
+            if not isinstance(self._values,list):
+                raise InputException('I got values which are not a list (got "{}" of type "{}")'.format(self._values, type(self._values)))
 
-            # If we are contextualized into a Space we have labels check their consistency        
-            if self.has_labels and not smartinit:
-                
-                # Check for Labels and Values of same lenght is smart inti was not used 
-                if len(self._labels) != len(self._values):
-                    raise InputException("labels and values have different lenght, got labels={} and values={}".format(self._labels, self._values))
-               
             # Check for int or float type of the values
             for i, item in enumerate(self._values):
                 if not (isinstance(item, int) or isinstance(item, float)):
                     raise InputException('Wrong data of type "{}" with value "{}" in dimension with label "{}", only int and float types are valid values for DimensionalData'.format(item.__class__.__name__, item, self._labels[i]))
 
 
-    # TODO: Maybe would be better to move this one in the base class since it involves filtering against labels?
+
+    # TODO: Maybe would be better to move this one in the base class since it involves filtering against labels?    
     
     # Values property
     @property
@@ -364,8 +354,39 @@ class Coordinates(Base):
 class Point(Coordinates, Space):
     '''A point in a n-dimensional space with some coordinates'''
     
-    # Sum and subtraction are defined in the classic, vectorial way.
+    # Init to handle init by dict
+    def __init__(self, labels_values_dict=None, **kwargs):
+
+        if labels_values_dict:
+            # Trustme switch        
+            trustme = kwargs['trustme'] if 'trustme' in kwargs else False
+            
+            if not trustme:
+                if not isinstance(labels_values_dict, dict):
+                    raise InputException('I got labels_values_dict which is not a dict (got "{}" of type "{}")'.format(labels_values_dict, type(labels_values_dict)))
+            
+            # Prepare
+            _labels = []
+            _values = []
+            
+            # Unpack
+            for item in labels_values_dict:
+                _labels.append(item)
+                _values.append(labels_values_dict[item])
+
+            # Now add values and labels
+            kwargs['values'] = _values
+            kwargs['labels'] = _labels
+        
+            # TODO: disable some checks trougth a switch like this?
+            # kwargs['used_values_and_labels'] =true
+
+        # Call parent init
+        super(Point, self).__init__(**kwargs)
     
+    
+    
+    # Sum and subtraction are defined in the classic, vectorial way.   
     def __add__(self, other, trustme=False):
         # Check compatibility
         if not trustme:
