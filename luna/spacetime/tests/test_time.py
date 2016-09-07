@@ -115,11 +115,11 @@ class test_time(unittest.TestCase):
         dateTime4 = dateTime3 + timeSlotSpan
         dateTime5 = dateTime4 + timeSlotSpan
 
-        self.assertEquals(str(dateTime1), '2015-10-25 00:15:00+02:00')
-        self.assertEquals(str(dateTime2), '2015-10-25 01:15:00+02:00')
-        self.assertEquals(str(dateTime3), '2015-10-25 02:15:00+02:00')
-        self.assertEquals(str(dateTime4), '2015-10-25 02:15:00+01:00')
-        self.assertEquals(str(dateTime5), '2015-10-25 03:15:00+01:00')
+        self.assertEqual(str(dateTime1), '2015-10-25 00:15:00+02:00')
+        self.assertEqual(str(dateTime2), '2015-10-25 01:15:00+02:00')
+        self.assertEqual(str(dateTime3), '2015-10-25 02:15:00+02:00')
+        self.assertEqual(str(dateTime4), '2015-10-25 02:15:00+01:00')
+        self.assertEqual(str(dateTime5), '2015-10-25 03:15:00+01:00')
 
 
     def test_dt_math(self):

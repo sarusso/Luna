@@ -88,7 +88,7 @@ class SQLiteDataTimeStream(DataTimeStream):
             
             except AttributeError:
                 # Python 3.x
-                db_data = self.query_cur.fetch_one()
+                db_data = self.query_cur.fetchone()
                 if not db_data:
                     raise StopIteration()
 
@@ -113,7 +113,7 @@ class SQLiteDataTimeStream(DataTimeStream):
                 values = list(db_data[2:])
                 try:
                     data = self.sensor.Points_type.data_type(labels=self.labels, values = values)
-                except InputException, e:
+                except InputException as e:
                     logger.error("Could not initialize {} with labels={} and values={}, got error: {}".format(self.sensor.Points_type.data_type, self.labels, values, e)) 
                 else:
                     DataTime_Point_or_Slot = self.sensor.Points_type(t                    = db_data[0],
@@ -126,7 +126,7 @@ class SQLiteDataTimeStream(DataTimeStream):
                 values = list(db_data[4:-1])
                 try:
                     data = self.sensor.Slots_type.data_type(labels=self.labels, values = values)
-                except InputException, e:
+                except InputException as e:
                     logger.error("Could not initialize {} with labels={} and values={}, error: '{}'".format(self.sensor.Slots_type.data_type, self.labels, values, e)) 
                 else:
                     if self.timeSlotSpan is not None:
