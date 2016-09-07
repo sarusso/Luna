@@ -115,11 +115,11 @@ class Base(object):
             if raises:
                 comp_str = ''
                 for i in range(len(self.labels)):
-                    comp_str += str(self.labels[i]) + ' (' + str(type(self.labels[i])) + '), '
+                    comp_str += str(self.labels[i]) + ' (' + str(self.labels[i].__class__.__name__) + '), '
                 comp_str = comp_str[:-2]
                 comp_str += ' <-- Vs --> '
                 for i in range(len(other.labels)):
-                    comp_str += str(other.labels[i]) + ' (' + str(type(other.labels[i])) + '), ' 
+                    comp_str += str(other.labels[i]) + ' (' + str(other.labels[i].__class__.__name__) + '), ' 
                 comp_str = comp_str[:-2]
                     
                 raise InputException("{}: Error, my labels are not compatible with labels I got: {}".format(self.classname, comp_str))
@@ -368,11 +368,11 @@ class Point(Coordinates, Space):
             # Prepare
             _labels = []
             _values = []
-            
-            # Unpack
-            for item in labels_values_dict:
-                _labels.append(item)
-                _values.append(labels_values_dict[item])
+
+            # Unpack (while sorting, which is fundamental)
+            for label in sorted(labels_values_dict):
+                _labels.append(label)
+                _values.append(labels_values_dict[label])
 
             # Now add values and labels
             kwargs['values'] = _values
