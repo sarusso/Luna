@@ -769,9 +769,9 @@ class StreamingDataTimeSeries(DataTimeSeries):
 
     def __repr__(self):
         if self.__data:
-            return '{}, start={}, end={}'.format(self.__class__.__name__, self.__data[0], self.__data[-1])
+            return '{}, start={}, end={}, timezone: {}'.format(self.__class__.__name__, self.__data[0], self.__data[-1], self.tz)
         else:
-            return '{}, start=NotImp, last seen=NotImp'.format(self.__class__.__name__)
+            return '{}, start=NotImp, last seen=NotImp, timezone: {}'.format(self.__class__.__name__, self.tz)
 
     def __iter__(self):
         # Check if the iterator is going to use the cache, so do not even initialize the iterator of the dataTimeStream

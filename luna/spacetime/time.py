@@ -1,8 +1,23 @@
 import datetime
 import calendar
+import sys
+import os 
+
 from luna.common.exceptions import InputException, ConsistencyException
 from luna.datatypes.auxiliary import SlotSpan
-import pytz
+
+# Logger
+import logging
+logger = logging.getLogger(__name__)
+
+# Import pytz library
+try:
+    import pytz
+except ImportError:
+    print('pytz not found, using internal minimal pytz implementation.')
+    logger.info('pytz not found, using internal minimal pytz implementation.')
+    sys.path.append(os.path.join(os.path.dirname(__file__), "../lib/minimal_pytz"))
+    import pytz
 
 
 #--------------------------
@@ -39,7 +54,7 @@ def now_dt(tzinfo='UTC'):
     '''Return the current time in datetime format'''
     if tzinfo != 'UTC':
         raise NotImplementedError()
-    return datetime.datetime.utcnow().replace(tzinfo = pytz.utc)
+    return datetime.datetime.utcnow().replace(tzinfo = pytz.UTC)
 
 def dt(*args, **kwargs):
     '''Initialize a datetime object in the proper way. Using the standard datetime leads to a lot of
@@ -155,7 +170,7 @@ def dt_from_s(timestamp_s, tz=None):
         raise InputException('timestamp_s argument must be string or number, got {}'.format(type(timestamp_s)))
 
     pytz_tz = timezonize(tz)
-    timestamp_dt = timestamp_dt.replace(tzinfo=pytz.utc).astimezone(pytz_tz)
+    timestamp_dt = timestamp_dt.replace(tzinfo=pytz.UTC).astimezone(pytz_tz)
     
     return timestamp_dt
 
