@@ -1,5 +1,5 @@
 
-from luna.datatypes.composite import DataTimeSeries
+from luna.datatypes.dimensional import DataTimeSeries
 from luna.common.exceptions import ConsistencyException
 
 class Operation(object):

@@ -1,6 +1,6 @@
 import unittest
 from luna.datatypes.dimensional import TimePoint
-from luna.datatypes.composite import DataTimePoint, PhysicalData, PhysicalDataTimePoint, DataTimeSeries, TimeSlot
+from luna.datatypes.dimensional import DataTimePoint, PhysicalData, PhysicalDataTimePoint, DataTimeSeries, TimeSlot
 from luna.aggregators.utilities import compute_1D_coverage
 from luna.common.exceptions import InputException
 from luna.spacetime.time import dt, TimeSlotSpan, correct_dt_dst, timezonize, s_from_dt

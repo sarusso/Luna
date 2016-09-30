@@ -1,5 +1,5 @@
 import unittest
-from luna.datatypes.composite import DataTimePoint
+from luna.datatypes.dimensional import DataTimePoint
 from luna.common.exceptions import InputException
 from luna.spacetime.time import dt, TimeSlotSpan, correct_dt_dst, timezonize, s_from_dt
 import datetime

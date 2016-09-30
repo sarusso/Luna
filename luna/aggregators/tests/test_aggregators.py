@@ -1,5 +1,5 @@
 import unittest
-from luna.datatypes.composite import DataTimeSeries, DataTimePoint, PhysicalDataTimePoint, PhysicalDataTimeSlot, StreamingDataTimeSeries
+from luna.datatypes.dimensional import DataTimeSeries, DataTimePoint, PhysicalDataTimePoint, PhysicalDataTimeSlot, StreamingDataTimeSeries
 from luna.datatypes.dimensional import *
 from luna.common.exceptions import InputException, StorageException
 from luna.spacetime.time import dt, TimeSlotSpan

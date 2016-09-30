@@ -1,5 +1,5 @@
 from luna.datatypes.dimensional import TimePoint, TimeSlot
-from luna.datatypes.composite import DataTimePoint, DataTimeSlot, PhysicalData, DataTimeSeries, DataPoint, DataSlot
+from luna.datatypes.dimensional import DataTimePoint, DataTimeSlot, PhysicalData, DataTimeSeries, DataPoint, DataSlot
 from luna.datatypes.auxiliary import PhysicalQuantity
 from luna.common.exceptions import ConsistencyException, ConfigurationException, InputException, NoDataException
 from luna.aggregators.utilities import compute_1D_coverage
