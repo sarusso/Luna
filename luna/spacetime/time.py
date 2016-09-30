@@ -225,10 +225,6 @@ class TimeSlotSpan(SlotSpan):
                        'u': 'microseconds'
                       }
 
-    @property
-    def is_symmetric(self):
-        return True
-
     def __init__(self, string=None, years=0, weeks=0, months=0, days=0, hours=0, minutes=0, seconds=0, microseconds=0, start=None, end=None, trustme=False):
 
         if not trustme:
@@ -268,7 +264,7 @@ class TimeSlotSpan(SlotSpan):
                 try:
                     groups   =  regex.match(string).groups()
                 except AttributeError:
-                    raise InputException('Error, got unknow interval ({})'.format(string))
+                    raise InputException('Cannot parse string representation for the TimeSlotSpan, unknown  format ("{}")'.format(string))
 
                 setattr(self, self.mapping_table[groups[1]], int(groups[0]))
 
@@ -511,7 +507,7 @@ class TimeSlotSpan(SlotSpan):
                 new_values.append(center.values[i] - self.value[i]/2.0)
             return center.__class__(labels=center.labels, values=new_values, tz=center.tz)
         else:
-            raise InputException('get_start: Got not end not center')        
+            raise InputException('get_start: Got not end nor center')        
             
     def get_end(self, start=None, center=None):
         new_values = []
@@ -524,7 +520,7 @@ class TimeSlotSpan(SlotSpan):
                 new_values.append(center.values[i] + self.value[i]/2.0) 
             return center.__class__(labels=center.labels, values=new_values, tz=center.tz) 
         else:
-            raise InputException('get_end: Got not end not center')
+            raise InputException('get_end: Got not end nor center')
 
     def get_center(self, start=None, end=None):
         new_values = []

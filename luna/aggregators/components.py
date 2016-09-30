@@ -65,12 +65,15 @@ class DataTimePointsAggregator(Aggregator):
         #-------------------
         # Compute coverage
         #-------------------
-        logger.debug(' Now computing coverage...')
         Slot_coverage = compute_1D_coverage(dataSeries  = dataTimeSeries,
                                             start_Point = start_Point,
                                             end_Point   = end_Point)
 
-        # If no coverage return list of None
+        if Slot_coverage ==0.0:
+            import sys
+            sys.exit(0)
+        
+        # If no coverage return list of None in None data is allowed, otherwise raise.
         if Slot_coverage == 0.0:
             if allow_None_data:
                 Slot_physicalData = self.Sensor.Points_type.data_type(labels  = Slot_data_labels_to_generate,
@@ -296,7 +299,7 @@ class DataTimeSeriesAggregatorProcess(object):
         # For now start/end not set is not supported:
         if not start_dt or not end_dt:
             raise NotImplementedError('Empty start/end not yet implemented') 
-        
+
         # Handle the rounded case
         if rounded:
             start_dt = self.timeSlotSpan.round_dt(start_dt) if start_dt else None
@@ -326,10 +329,15 @@ class DataTimeSeriesAggregatorProcess(object):
                                                                                                        end_dt,
                                                                                                        self.Sensor.__class__.__name__,
                                                                                                        dataTimeSeries))
+        # Counters
         callback_counter = 1
+        count = 0
         
         for dataTimePoint in dataTimeSeries:
-
+            
+            # Increase counter
+            count +=1
+            
             # Set start_dt if not already done
             if not start_dt:
                 start_dt = self.timeSlotSpan.timeInterval.round_dt(dataTimePoint.dt) if rounded else dataTimePoint.dt
@@ -459,6 +467,8 @@ class DataTimeSeriesAggregatorProcess(object):
             # 2) Handle missing slots until the requested end (end_dt)
             # TODO...
 
+
+        logger.info('Aggregation process ended, processed {} DataTimePoints.'.format(count))
  
     #------------------
     #  Get results

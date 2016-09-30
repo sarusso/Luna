@@ -119,7 +119,7 @@ class SQLiteDataTimeStream(DataTimeStream):
                     DataTime_Point_or_Slot = self.sensor.Points_type(t                    = db_data[0],
                                                                      tz                   = self.sensor.timezone,
                                                                      data                 = data,
-                                                                     validity_region_span = self.sensor.Points_validity_region_span)
+                                                                     validity_region      = self.sensor.Points_validity_region)
     
             # Hanlde the case of the Slots
             elif issubclass(DataTimeSlot, self.data_type):

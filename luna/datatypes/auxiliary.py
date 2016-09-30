@@ -59,14 +59,11 @@ class Span(object):
     def __ne__(self, other):
         return (not self.__eq__(other))
 
-    # Symmetry
-    @property
-    def is_symmetric(self):  
-        raise NotImplementedError('{}: You cannot use all Span functions without fully implementing it (self.is_symmetric property not found)'.format(self.__class__.__name__))
 
+class RegionSpan(Span):
+    pass
 
-
-class SlotSpan(Span):
+class SlotSpan(RegionSpan):
     '''A Slot Span is basically a unit for defining the "length" of an hyper-rectangle: the Slot (or interval).
     In practice, this class of objects allows to measure the "length" of a segment, an area, a volume (depending
     on the space in which it lives in). Since the Slot (interval) has a start and an end, which are the vertex
@@ -152,22 +149,6 @@ class SlotSpan(Span):
             return end.__class__(labels=end.labels, values=new_values) 
         else:
             raise InputException('get_center: Got not end not start')       
-        
-        
-        
-    # Handle symmetry property
-    @property
-    def is_symmetric(self):   
-        first_value = None
-        for value in self.value:
-            if first_value is None:
-                first_value = value
-                continue
-            else:
-                if first_value != value:
-                    return False            
-        return True
-
 
 
 #----------------------------------------
@@ -192,10 +173,6 @@ class RegionShape(object):
         return '{} of {}'.format(self.__class__.__name__, self.name)
 
     def validate_anchor(self, anchor):
-        return True
-        #raise NotImplementedError('This is an abstract method, you have to implement it!')
-
-    def validate_orientation(self, anchor):
         return True
         #raise NotImplementedError('This is an abstract method, you have to implement it!')
 

@@ -1,6 +1,6 @@
 import unittest
 from luna.datatypes.dimensional import TimePoint
-from luna.datatypes.composite import DataTimePoint, PhysicalData, PhysicalDataTimePoint, DataTimeSeries
+from luna.datatypes.composite import DataTimePoint, PhysicalData, PhysicalDataTimePoint, DataTimeSeries, TimeSlot
 from luna.aggregators.utilities import compute_1D_coverage
 from luna.common.exceptions import InputException
 from luna.spacetime.time import dt, TimeSlotSpan, correct_dt_dst, timezonize, s_from_dt
@@ -13,55 +13,55 @@ class test_compute_1D_coverage(unittest.TestCase):
         # TimeSeries from 16:58:00 to 17:32:00 (Europe/Rome)
         self.dataTimeSeries1 = DataTimeSeries()
         start_t = 1436022000 - 120
-        validity_region_span = TimeSlotSpan('1m')          
+        validity_region = TimeSlot(span='1m')          
         for i in range(35):
             data = PhysicalData( labels = ['power_W'], values = [154+i] ) 
             physicalDataTimePoint = PhysicalDataTimePoint(t    = start_t + (i*60),
                                                           tz   ="Europe/Rome",
                                                           data =data,
-                                                          validity_region_span = validity_region_span)
+                                                          validity_region = validity_region)
             self.dataTimeSeries1.append(physicalDataTimePoint)
         
         # TimeSeries from 17:00:00 to 17:30:00 (Europe/Rome)
         self.dataTimeSeries2 = DataTimeSeries()
         start_t = 1436022000
-        validity_region_span = TimeSlotSpan('1m')          
+        validity_region = TimeSlot(span='1m')          
         for i in range(34):
             data = PhysicalData( labels = ['power_W'], values = [154+i] ) 
             physicalDataTimePoint = PhysicalDataTimePoint(t    = start_t + (i*60),
                                                           tz   = "Europe/Rome",
                                                           data = data,
-                                                          validity_region_span = validity_region_span)
+                                                          validity_region = validity_region)
             self.dataTimeSeries2.append(physicalDataTimePoint)
 
         # TimeSeries from 17:00:00 to 17:20:00 (Europe/Rome)
         self.dataTimeSeries3 = DataTimeSeries()
         start_t = 1436022000 - 120
-        validity_region_span = TimeSlotSpan('1m')          
+        validity_region = TimeSlot(span='1m')          
         for i in range(23):
             data = PhysicalData( labels = ['power_W'], values = [154+i] ) 
             physicalDataTimePoint = PhysicalDataTimePoint(t    = start_t + (i*60),
                                                           tz   = "Europe/Rome",
                                                           data = data,
-                                                          validity_region_span = validity_region_span)
+                                                          validity_region = validity_region)
             self.dataTimeSeries3.append(physicalDataTimePoint) 
         
         # TimeSeries from 17:10:00 to 17:30:00 (Europe/Rome)
         self.dataTimeSeries4 = DataTimeSeries()
         start_t = 1436022000 + 600
-        validity_region_span = TimeSlotSpan('1m')          
+        validity_region = TimeSlot(span='1m')          
         for i in range(21):
             data = PhysicalData( labels = ['power_W'], values = [154+i] ) 
             physicalDataTimePoint = PhysicalDataTimePoint(t    = start_t + (i*60),
                                                           tz   = "Europe/Rome",
                                                           data = data,
-                                                          validity_region_span = validity_region_span)
+                                                          validity_region = validity_region)
             self.dataTimeSeries4.append(physicalDataTimePoint)
 
         # TimeSeries from 16:58:00 to 17:32:00 (Europe/Rome)
         self.dataTimeSeries5 = DataTimeSeries()
         start_t = 1436022000 - 120
-        validity_region_span = TimeSlotSpan('1m')          
+        validity_region = TimeSlot(span='1m')          
         for i in range(35):
             if i > 10 and i <21:
                 continue
@@ -69,7 +69,7 @@ class test_compute_1D_coverage(unittest.TestCase):
             physicalDataTimePoint = PhysicalDataTimePoint(t    = start_t + (i*60),
                                                           tz   ="Europe/Rome",
                                                           data =data,
-                                                          validity_region_span = validity_region_span)
+                                                          validity_region = validity_region)
             self.dataTimeSeries5.append(physicalDataTimePoint)
 
 

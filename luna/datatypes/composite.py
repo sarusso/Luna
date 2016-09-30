@@ -30,10 +30,11 @@ class DataPoint(Point):
     which is defined based on the data it carries with him: the validity region (or uniformity region)
     is in fact the region in which the variation of the "measured" value is postulated to be negligible.
     Please note that the validity region _must_ be a symmetric Region. In addition to the validity region,
-    another required parameter is the validity span, which is required for defining the validity region and
-    that and dat vary on a per-point basis (i.e. all the temperature sensors has a spherical validity Region,
+    another parameter required or defining the validity region is the region span, that can vary on a per-point
+    basis (i.e. all the temperature sensors has a spherical validity Region,
     bit its shape can vary if they are indoor or outdoor. Or, more simply, the validity region is a temporal
-    segment but it width can vary according to the circumstances. One final note: even if the validity region
+    segment but it width can vary according to the circumstances. 
+    Also note that even if the validity region
     must be a symmetric region, nothing prevents you to use assymetric region in particular implementations
     of the DataPoint. For example, in a TimeDataPoint you could use a validity region projected forward in
     time to achieve the so called event-based data streams.'''
@@ -41,9 +42,6 @@ class DataPoint(Point):
     # New
     '''The validity region by default is a Slot, centered on the middle point, and the Span is a SlotSpan, but you can
     change it just by using the validty_region_class and validty_span_class validity_region_anchor ''' 
-    
-    
-    validity_region_class  = Slot
 
     def __init__(self, *argv, **kwargs):
 
@@ -52,50 +50,24 @@ class DataPoint(Point):
 
         # Args for the DataPoint
         self.data   = kwargs.pop('data', None)
-        
-        # If validity_region_class is passed, override and set the new one (and check if necessary)
-        if 'validity_region_class' in kwargs:
-            self.validity_region_class = kwargs.pop('validity_region_class')
 
-        # Set validty_region_span
-        validity_region_span  = kwargs.pop('validity_region_span', None)
-        
-        # Set the span only if it is not None
-        if validity_region_span is not None:
-            self.validity_region_span = validity_region_span
-            
         # Init empty _validity_region:
-        self._validity_region = None 
-         
+        self._validity_region = None    
+     
+        # Set validty_region_span if present
+        validity_region  = kwargs.pop('validity_region', None)
+        if validity_region is not None:
+            self._validity_region = validity_region
+
         # Consistency checks
         if not trustme:              
             
             # Check for presence of data
             if self.data is None:
                 raise InputException('{}: Sorry, you need to specify some date, i got None'.format(self.classname)) 
-            
-            # Check valid validity_region_class
-            if not issubclass(self.validity_region_class, Region):
-                raise InputException('Point validity region class must be a subclass of Region, got {}'.format(type(self.validity_region)))  
-            
-            # If we are have a validity span and therefore a validity region:  
-            if validity_region_span is not None:
-                
-                # Check valid Span
-                if not isinstance(self.validity_region_span, Span):
-                    raise InputException('Point validity region span must be a subclass of Span, got {}'.format(type(self.validity_region_span)))  
-
 
         # Call parent Init
         super(DataPoint, self).__init__(*argv, **kwargs)
-
-        # Consistency checks (after parent Init)
-        if not trustme:  
-            # If we are have a validity span and therefore a validity region:  
-            if validity_region_span is not None:
-                # Check symmetry # TODO: this check raise the creation of the validity Region object. Change logic for performance? 
-                if self.validity_region and not self.validity_region.is_symmetric:
-                    raise InputException('The the validity region _must_ be a symmetric Region, the one you provided it is not.')
 
 
     # Representation (here we trick a bit if we have data with labels/value to obtain a more comfortable
@@ -128,35 +100,30 @@ class DataPoint(Point):
     def data_type(self):
         raise NotImplemented('{}: you cannot access the data_type attribute if you do not extend the basic DataPoint object specifying a type'.format(self.__class__.__name__))
 
-    # Validity region. TODO: Save it in a _validty_region variable for performance?
+    # Validity region.
     @property
     def validity_region(self):
         
-        # Return if already computed
-        if self._validity_region:
-            return self._validity_region
-        
-        # Only symmetric regions are supported in the Generic DataPoint, so we 
-        # Center on lower corner
-
-        if not hasattr(self, 'validity_region_span'):
-            
-            # Approach A) Create empty Span
-            #self.validity_region_span = Span(value=0)
-            #self.validity_region_span.get_start = self._get_Point_part
-            #self.validity_region_span.get_end   = self._get_Point_part
-            
-            # Approach B): Raise 
-            raise AttributeError('{}; Sorry, you cannot ask me for mine validity_region if you did not provide me a validity_region_span'.format(self.classname))
-
-        self._validity_region = self.validity_region_class(anchor=self.Point_part, span=self.validity_region_span)
+        # Anchor the validity region to this Point if not already done
+        if self._validity_region is not None:
+            if self._validity_region.anchor is None:
+                # We need to copy the region to let it be used by other Points!
+                # TODO: this is a performance hit..
+                self._validity_region = copy(self._validity_region)
+                self._validity_region._anchor_to(self.Point_part)  
         return self._validity_region
 
     # Point_part (or, cast to Point)
     @property
     def Point_part(self):
+
         if not hasattr(self, '_point_part'):
-            self._point_part = Point(labels = self.labels, values=self.values, trustme=True)
+            # self.__class__.__bases__[0] is the Point part (in Luna composite types always start from the Point)
+            # Todo: introspection on class extensions, not nice.
+            if hasattr(self,'tz'):
+                self._point_part = self.__class__.__bases__[0](labels = self.labels, values=self.values, tz=self.tz, trustme=True)
+            else:
+                self._point_part = self.__class__.__bases__[0](labels = self.labels, values=self.values, trustme=True)
         return self._point_part
 
     def _get_Point_part(self, *args, **kwargs):
@@ -201,17 +168,8 @@ class DataSlot(Slot):
 class DataTimePoint(TimePoint, DataPoint):
     '''A TimePoint with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
 
-    validity_region_class = TimeSlot
-    
     def __repr__(self):
         return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
-
-    # Point_part (or, cast to TimePoint)
-    @property
-    def Point_part(self):
-        if not hasattr(self, '_point_part'):
-            self._point_part = TimePoint(labels = self.labels, values=self.values, tz=self.tz, trustme=True)
-        return self._point_part
 
 
 
@@ -325,15 +283,7 @@ class PhysicalDataSlot(DataSlot):
 
 
 # Composite..
-class PhysicalDataTimePoint(TimePoint, PhysicalDataPoint):
-    
-    # TODO: Fix me! having to re-define the point part function every time is not correct! 
-    @property
-    def Point_part(self):
-        if not hasattr(self, '_point_part'):
-            self._point_part = TimePoint(labels = self.labels, values=self.values, tz=self.tz, trustme=True)
-        return self._point_part
-
+class PhysicalDataTimePoint(TimePoint, PhysicalDataPoint):   
     pass
 
 class PhysicalDataTimeSlot(TimeSlot, PhysicalDataSlot):
@@ -419,7 +369,7 @@ class DataTimeSeries(TimeSeries):
         # TODO: use the data_type
         if self._data:
             if isinstance(self._data[0], TimeSlot):
-                return '{} of {} {} ({}), first TimeSlot start: {}, last TimeSLot start: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].span, self._data[0].start.dt, self._data[-1].start.dt, self.tz)                
+                return '{} of {} {} ({}), first TimeSlot start: {}, last TimeSlot start: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].span, self._data[0].start.dt, self._data[-1].start.dt, self.tz)                
             else:    
                 return '{} of {} {}, start: {}, end: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].dt, self._data[-1].dt, self.tz)
         else:
@@ -461,7 +411,6 @@ class DataTimeSeries(TimeSeries):
         # Handle wrap of myself 
         wrapped = object.__getattribute__(self, 'wrapped')
         # Hard Debug: logger.debug('Getting attr %s, wrapped=%s',attr, wrapped)
-        iswrapper = (True if wrapped else False)
         if wrapped:
             # Wrapped object, filters and iterator status are stored in myself, not in the wrapped object
             if attr in ['wrapped', 'filter_labels', 'filter_from_dt', 'filter_to_dt', 'data_label_to_lazy_filter', '__iter__', '__next__', 'wrapper_current']:
@@ -736,7 +685,7 @@ class DataTimeSeries(TimeSeries):
 # StreamingDataTimeSeries
 #---------------------------------------------
 
-# Put in auxiliary and improve (should extend DataStream)
+# TODO: Put in auxiliary and improve (should extend DataStream)
 class DataTimeStream(object):
     ''' A data time stream is a stream of DataTimePoints or DataTimeSlots. it has to be implemented by the data source (storage)'''
     

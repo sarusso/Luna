@@ -19,15 +19,12 @@ class test_dataPoint(unittest.TestCase):
                     
         dataPoint1 = DataPoint({'g': 1000}, data='string_data1')
         dataPoint2 = DataPoint({'g': 1000}, data='string_data2')
-        dataPoint3 = DataPoint({'g': 1000}, data='string_data3', validity_region_span=SlotSpan(value=[60]))
+        dataPoint3 = DataPoint({'g': 1000}, data='string_data3',
+                                validity_region = Slot(span=SlotSpan(value=[60]), labels=['g']))
         
         self.assertEqual(dataPoint1.data,'string_data1')
         self.assertEqual(dataPoint2.data,'string_data2')
         self.assertEqual(dataPoint3.data,'string_data3')
-        
-        # Test that you cannot access a validity region if you did not provide the validity_region_span
-        with self.assertRaises(AttributeError):
-            _ = dataPoint1.validity_region 
         
         # TODO: here we are indirectly testing the valitiy region, which is the slot
         self.assertTrue(isinstance(dataPoint3.validity_region, Slot))
@@ -57,15 +54,11 @@ class test_dataTimePoint(unittest.TestCase):
                     
         dataTimePoint1 = DataTimePoint(t=1000, data='string_data1')
         dataTimePoint2 = DataTimePoint(t=1000, data='string_data2')
-        dataTimePoint3 = DataTimePoint(t=1000, data='string_data3', validity_region_span=TimeSlotSpan('60s'))
+        dataTimePoint3 = DataTimePoint(t=1000, data='string_data3', validity_region=TimeSlot(span=TimeSlotSpan('60s')))
         
         self.assertEqual(dataTimePoint1.data,'string_data1')
         self.assertEqual(dataTimePoint2.data,'string_data2')
         self.assertEqual(dataTimePoint3.data,'string_data3')
-        
-        # Test that you cannot access a validity region if you did not provide the validity_region_span
-        with self.assertRaises(AttributeError):
-            _ = dataTimePoint1.validity_region 
         
         # TODO: here we are indirectly testing the validity region, which is the slot
         self.assertTrue(isinstance(dataTimePoint3.validity_region, TimeSlot))

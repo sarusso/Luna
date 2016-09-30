@@ -29,7 +29,7 @@ datasets_path= '/'.join(os.path.realpath(__file__).split('/')[0:-1]) + '/dataset
 class SimpleSensor(PhysicalDataTimeSensor):
     type_ID = 1
     Points_data_labels = ['temp_C']
-    Points_validity_region_span = TimeSlotSpan('1m')
+    Points_validity_region = TimeSlot(span='1m')
     Slots_data_labels =  ['temp_C_AVG', 'temp_C_MIN', 'temp_C_MAX']
     timezone = 'Europe/Rome'
 
@@ -77,7 +77,7 @@ class EnergyElectricExtendedTriphase(PhysicalDataTimeSensor):
                            "rpower_VAr_AVG", "rpower_VAr_MIN", "rpower_VAr_MAX"]
        
     # Set validity region span for points
-    Points_validity_region_span = TimeSlotSpan('2m')
+    Points_validity_region = TimeSlot(span='2m')
     
     # Fixed timezone:
     timezone = "Europe/Rome"
@@ -182,7 +182,7 @@ class test_aggregators(unittest.TestCase):
             data = PhysicalData( labels = ['temp_C'], values = [25.5] ) 
             physicalDataTimePoint = PhysicalDataTimePoint(dt   = slider_dt,
                                                           data = data,
-                                                          validity_region_span = sensor.Points_validity_region_span)
+                                                          validity_region = sensor.Points_validity_region)
             dataTimeSeries.append(physicalDataTimePoint)
             slider_dt = slider_dt + TimeSlotSpan('1m')
             

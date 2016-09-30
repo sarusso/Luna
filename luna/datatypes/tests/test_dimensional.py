@@ -116,11 +116,18 @@ class test_dimensional(unittest.TestCase):
         end_Point1 = Point(labels=["a","b"], values=[9,13])
         end_Point2 = Point(labels=["a","b"], values=[9,14])
         end_Point3 = Point(labels=["a"], values=[9])
+        end_Point4 = Point(labels=["a","b"], values=[7,10])
         
+
+        # Floating Slot
+        slot0 = Slot(span=SlotSpan(value=[4,5]), labels=['a', 'b'])
+        
+        # Slots with start and end
         slot1 = Slot(start=start_Point1, end=end_Point1)
         slot2 = Slot(start=start_Point1, end=end_Point1)
         slot3 = Slot(start=start_Point1, end=end_Point2)
         slot4 = Slot(start=start_Point2, end=end_Point3)
+        slot5 = Slot(start=start_Point1, end=end_Point4) 
         
         
         # Test that the span has been correctly set:
@@ -140,10 +147,10 @@ class test_dimensional(unittest.TestCase):
         with self.assertRaises(InputException):
             _ = Slot(start=start_Point1, end=end_Point3)
         
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(InputException):
             _ = Slot(start=start_Point1, end=2)
             
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(InputException):
             _ = Slot(start=1, end=start_Point2)
 
         # Test equality
@@ -156,36 +163,44 @@ class test_dimensional(unittest.TestCase):
         # TODO: FIX THIS (and the above mess, WHY there is an AssertionError?!
         #self.assertNotEqual(slot1,slot2)    
         self.assertEqual(slot1,slot2) 
-        
-
-            
+                
         self.assertNotEqual(slot1,slot3)
         self.assertNotEqual(slot1,slot4)
 
         # Test lables
         self.assertEqual(slot1.labels, ['a','b'])
         
-        # Test values
-        # No if Slot extends Region
-        #self.assertEqual(slot1.values, [5, 8])
-        #
-        # Test accessing values by index
-        #self.assertEqual(slot1.valuesdict.a,5)
-
-        # TODO: Missing tests with type (the tests are in test_TimeSlot), we should define a TestSlotType SlotType mock or something...
-        
         # Test deltas
         self.assertEqual(slot1.deltas, [4,5])
+        self.assertEqual(slot0.deltas, [4,5])
         
-        # Not anchored Slot raise an error:
-        with self.assertRaises(InputException):
-            _ = Slot(span=Span(value=[2,3]), labels=['a','b'])
+        # Slots are also allowed with just the span..
+        slot = Slot(span=SlotSpan(value=[2,3]), labels=['a','b'])
+        self.assertEqual(slot.anchor, None)
+        
+        #..and can be anchored afterwards:
+        slot._anchor_to(start_Point1)
+        self.assertEqual(slot.anchor, start_Point1)
+
+
+        # Test the symmetry check
+        self.assertFalse(slot1.is_symmetric) # delats = [4.0, 5.0]
+        self.assertTrue(slot5.is_symmetric)  # deltas = [2.0, 2.0]
+        self.assertFalse(slot0.is_symmetric)  # deltas = [  4,   5]
+
+
+
+        # TODO: Missing tests with type (the tests are in test_TimeSlot), we should define a TestSlotType SlotType mock or something...                       
+        # TODO: test that you cannot ask for start/end if the slot is not anchored.
+        
+        
         
         #-----------------------------------------------------------------------------
         # TODO: fix the tests by removing the ones here and adding new proper ones
         #-----------------------------------------------------------------------------
 
-        #self.assertEqual(slot5.anchor, None)
+        self.assertEqual(slot0.anchor, None)
+        self.assertEqual(slot5.anchor, Point(labels=["a","b"], values=[6,9]))
         #self.assertEqual(slot5.orientation, None)
         #self.assertEqual(slot5.start, None)
         #self.assertEqual(slot5.end, None)
@@ -264,12 +279,24 @@ class test_dimensional(unittest.TestCase):
 
     def test_TimeSlot(self):
         start_timePoint = TimePoint(dt=dt(2015,2,27,13,0,0, tzinfo='UTC'))
+        center_timePoint = TimePoint(dt=dt(2015,2,27,13,30,0, tzinfo='UTC'))
         end_timePoint = TimePoint(dt=dt(2015,2,27,14,0,0, tzinfo='UTC'))
         
-        # Test basic behaviour with no span
+        # Test basic behavior with no span but start/end (not floating)
         timeSlot = TimeSlot(start=start_timePoint, end=end_timePoint)
         self.assertEqual(timeSlot.start, start_timePoint)
         self.assertEqual(timeSlot.end, end_timePoint)
+ 
+
+        # Test basic behavior with span but floating
+        timeSlot_floating = TimeSlot(span=TimeSlotSpan('1m'), labels=['t'])
+        timeSlot_floating = TimeSlot(span=TimeSlotSpan('1m'))
+        
+        with self.assertRaises(InputException):
+            _ = TimeSlot(span=TimeSlotSpan('1m'), labels=['a'])
+        
+        #self.assertEqual(timeSlot_floating) WORKING HERE
+        
  
         # Test behaviour with start-end-span  
         timeSlotSpan = TimeSlotSpan("1h")
@@ -286,11 +313,23 @@ class test_dimensional(unittest.TestCase):
         self.assertEqual(timeSlot.end, end_timePoint)
 
 
-        # Test that a 'floating' timeslot is not allowed:
-        timeSlotSpan = TimeSlotSpan("1h")
-        with self.assertRaises(InputException):
-            timeSlot = TimeSlot(span=timeSlotSpan)
+        # Test that a 'floating' timeslot is allowed:        
+        timeSlot = TimeSlot(span="1h")
+        self.assertEqual(timeSlot.anchor, None)
+        self.assertEqual(timeSlot.start, None)
+        self.assertEqual(timeSlot.end, None)
+        self.assertEqual(timeSlot.center, None)
 
+        # but it can be anchored (by default to the center)
+        timeSlot._anchor_to(center_timePoint)
+        self.assertEqual(timeSlot.anchor, center_timePoint)
+        self.assertEqual(timeSlot.start, start_timePoint)
+        self.assertEqual(timeSlot.center, center_timePoint)
+        self.assertEqual(timeSlot.end, end_timePoint)
+        
+        # TODO: cannot compare with None and Points (try this: self.assertEqual(timeSlot.anchor, center_timePoint))
+        
+  
 
     def test_SpaceSlot(self):
         pass
@@ -334,11 +373,6 @@ class test_dimensional(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             _ = span.get_end(start=None)    
 
-        with self.assertRaises(NotImplementedError):
-            _ = span.is_symmetric
-
-
-        
 
         #--------------------
         # Test Slot Span
@@ -378,11 +412,6 @@ class test_dimensional(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             _ = span.get_end(start=None)    
 
-        # Test the symmetry check
-        self.assertTrue(slotSpan1.is_symmetric)     # [5,5]
-        self.assertFalse(slotSpan2.is_symmetric)    # [3,4]
-        self.assertTrue(slotSpan3.is_symmetric)     # [0,0]
-        self.assertFalse(slotSpan4.is_symmetric)    # [-3,-5]
 
     def tearDown(self):
         pass
