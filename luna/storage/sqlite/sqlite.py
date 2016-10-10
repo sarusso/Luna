@@ -378,12 +378,12 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
         if from_dt and to_dt:
             from_s = s_from_dt(from_dt)
             to_s   = s_from_dt(to_dt)
-            query  = 'SELECT * from {}_DataTimePoints where sid="{}" and ts >= {} and ts < {}'.format(sensor.__class__.__name__, sensor.id, from_s, to_s)
+            query  = 'SELECT * from {}_DataTimePoints WHERE sid="{}" AND ts >= {} AND ts < {} ORDER BY ts'.format(sensor.__class__.__name__, sensor.id, from_s, to_s)
         elif (not from_dt and to_dt) or (from_dt and not to_dt):
             raise InputException('Sorry, please give both from_dt and to_dt or none.')
         else:
             # Select all data
-            query = 'SELECT * from {}_DataTimePoints where sid="{}"'.format(sensor.__class__.__name__, sensor.id)
+            query = 'SELECT * FROM {}_DataTimePoints WHERE sid="{}" ORDER BY ts'.format(sensor.__class__.__name__, sensor.id)
 
         # Create the DataStream
         dataTimeStream = SQLiteDataTimeStream(cur=cur, query=query, sensor=sensor, data_type=DataTimePoint, labels=labels)
@@ -423,12 +423,12 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
         if from_dt and to_dt:
             from_s = s_from_dt(from_dt)
             to_s   = s_from_dt(to_dt)
-            query  = 'SELECT * from {}_DataTimeSlots where sid="{}" and span="{}" and start_ts >= {} and end_ts <= {}'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan, from_s, to_s)
+            query  = 'SELECT * from {}_DataTimeSlots WHERE sid="{}" AND span="{}" AND start_ts >= {} and end_ts <= {} ORDER BY start_ts'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan, from_s, to_s)
         elif (not from_dt and to_dt) or (from_dt and not to_dt):
             raise InputException('Sorry, please give both from_dt and to_dt or none.')
         else:
             # Select all data
-            query = 'SELECT * from {}_DataTimeSlots where sid="{}" and span="{}"'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan)
+            query = 'SELECT * from {}_DataTimeSlots WHERE sid="{}" AND span="{}" ORDER BY start_ts'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan)
 
         # Create the DataStream
         dataTimeStream = SQLiteDataTimeStream(cur=cur, query=query, sensor=sensor, data_type=DataTimeSlot, labels=labels, timeSlotSpan=timeSlotSpan)
