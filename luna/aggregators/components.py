@@ -69,10 +69,6 @@ class DataTimePointsAggregator(Aggregator):
                                             start_Point = start_Point,
                                             end_Point   = end_Point)
 
-        if Slot_coverage ==0.0:
-            import sys
-            sys.exit(0)
-        
         # If no coverage return list of None in None data is allowed, otherwise raise.
         if Slot_coverage == 0.0:
             if allow_None_data:
@@ -334,7 +330,7 @@ class DataTimeSeriesAggregatorProcess(object):
         count = 0
         
         for dataTimePoint in dataTimeSeries:
-            
+
             # Increase counter
             count +=1
             
@@ -415,7 +411,8 @@ class DataTimeSeriesAggregatorProcess(object):
                     filtered_dataTimeSeries = DataTimeSeries()
                     
                     # Append the previous dataprev_dataTimePoint to the new DataTimeSeries
-                    filtered_dataTimeSeries.append(prev_dataTimePoint)
+                    if prev_dataTimePoint:
+                        filtered_dataTimeSeries.append(prev_dataTimePoint)
 
                     logger.info('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
                     
