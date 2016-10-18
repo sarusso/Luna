@@ -111,6 +111,9 @@ class SQLiteDataTimeStream(DataTimeStream):
             # Hanlde the case of the Points
             if issubclass(DataTimePoint, self.data_type):
                 values = list(db_data[2:])
+                # Skip if the data is saved as None
+                if None in values:
+                    continue
                 try:
                     data = self.sensor.Points_type.data_type(labels=self.labels, values = values)
                 except InputException as e:
@@ -124,8 +127,11 @@ class SQLiteDataTimeStream(DataTimeStream):
             # Hanlde the case of the Slots
             elif issubclass(DataTimeSlot, self.data_type):
                 values = list(db_data[4:-1])
+                # Skip if the data is saved as None
+                if None in values:
+                    continue
                 try:
-                    data = self.sensor.Slots_type.data_type(labels=self.labels, values = values)
+                    data = self.sensor.Slots_type.data_type(labels=self.labels, values=values)
                 except InputException as e:
                     logger.error("Could not initialize {} with labels={} and values={}, error: '{}'".format(self.sensor.Slots_type.data_type, self.labels, values, e)) 
                 else:
@@ -298,7 +304,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
                     storage_structure_checked = True
                 
                 labels_list = ', '.join([fix_label_to_sqlite(label) for label in sensor.Points_data_labels])
-                values_list = ', '.join([str(value) for value in item.data.values])
+                values_list = ', '.join([str(value) if value is not None else 'NULL' for value in item.data.values])
                 logger.debug("Inserting point with t=%s, labels=%s, values=%s", item.t, labels_list, values_list)
                 cur.execute("INSERT OR REPLACE INTO {}_DataTimePoints(ts, sid, {}) VALUES ({},'{}',{})".format(sensor.__class__.__name__, labels_list, item.t, sensor.id,  values_list))       
 
@@ -311,7 +317,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
                     storage_structure_checked = True
                 
                 labels_list = ', '.join([fix_label_to_sqlite(label) for label in sensor.Slots_data_labels])
-                values_list = ', '.join([str(value) for value in item.data.values])
+                values_list = ', '.join([str(value) if value is not None else 'NULL' for value in item.data.values])
                 logger.debug("Inserting slot with start=%s, end=%s, lables=%s, values=%s", item.start, item.end, labels_list, values_list)
                 if item.coverage is None:
                     query = "INSERT OR REPLACE INTO {}_DataTimeSlots(start_ts, end_ts, sid, span, {}) VALUES ({}, {},'{}','{}',{})".format(sensor.__class__.__name__, labels_list, item.start.t, item.end.t, sensor.id, item.span, values_list)
