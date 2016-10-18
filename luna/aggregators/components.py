@@ -39,7 +39,7 @@ class DataTimePointsAggregator(Aggregator):
     def __init__(self, Sensor):
         self.Sensor = Sensor
     
-    def aggregate(self, dataTimeSeries, start_dt, end_dt, timeSlotSpan, allow_None_data=False):
+    def aggregate(self, dataTimeSeries, start_dt, end_dt, timeSlotSpan, raise_if_no_data=False):
 
         #-------------------
         # Sanity checks
@@ -71,7 +71,9 @@ class DataTimePointsAggregator(Aggregator):
 
         # If no coverage return list of None in None data is allowed, otherwise raise.
         if Slot_coverage == 0.0:
-            if allow_None_data:
+            if raise_if_no_data:
+                raise NoDataException('This slot has coverage of 0.0, cannot compute any data! (start={}, end={})'.format(start_Point, end_Point))
+            else:
                 Slot_physicalData = self.Sensor.Points_type.data_type(labels  = Slot_data_labels_to_generate,
                                                                       values  = [None for _ in Slot_data_labels_to_generate], # Force "trustme" to allow None in data
                                                                       trustme = True)
@@ -84,8 +86,6 @@ class DataTimePointsAggregator(Aggregator):
                 
                 logger.info('Done aggregating, slot: %s', dataTimeSlot)
                 return dataTimeSlot
-            else:
-                raise NoDataException('This slot has coverage of 0.0, cannot compute any data! (start={}, end={})'.format(start_Point, end_Point))
 
         #--------------------------------------------
         # Understand the labels to produce and to 
@@ -249,14 +249,14 @@ class DataTimeSeriesAggregatorProcess(object):
     aggregate in 15 minutes slots). The DataTimeSeriesAggregatorProcess is STATEFUL'''
 
     
-    def __init__(self, timeSlotSpan, Sensor, data_to_aggregate, allow_None_data=False):
+    def __init__(self, timeSlotSpan, Sensor, data_to_aggregate, raise_if_no_data=False):
         ''' Initiliaze the aggregator process, of a given timeSlotSpan.'''
 
         # Arguments
         self.timeSlotSpan            = timeSlotSpan
         self.Sensor                  = Sensor
         self.data_to_aggregate       = data_to_aggregate
-        self.allow_None_data         = allow_None_data
+        self.raise_if_no_data         = raise_if_no_data
         
         # Internal vars
         self.results_dataTimeSeries  = DataTimeSeries()
@@ -392,7 +392,7 @@ class DataTimeSeriesAggregatorProcess(object):
                                                                        start_dt           = slot_start_dt,
                                                                        end_dt             = slot_end_dt,
                                                                        timeSlotSpan       = self.timeSlotSpan,
-                                                                       allow_None_data    = self.allow_None_data)
+                                                                       raise_if_no_data   = self.raise_if_no_data)
                         # .. and append results 
                         self.results_dataTimeSeries.append(aggregator_results)
                         
