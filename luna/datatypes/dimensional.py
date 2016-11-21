@@ -1448,8 +1448,9 @@ class DataTimeSeries(TimeSeries):
                 if isinstance(timeData_Point_or_Slot.data, Space):
                     timeData_Point_or_Slot.data.is_compatible_with(last_timeData_Point_or_Slot.data, raises=True)
                 
-                # Check also the tz
-                if last_timeData_Point_or_Slot.tz != timeData_Point_or_Slot.tz:
+                # Check also the tz. We need to check with strings.. 
+                # TOOD: improve this check?  
+                if str(last_timeData_Point_or_Slot.tz) != str(timeData_Point_or_Slot.tz):
                     raise InputException('Error, you are trying to add data with timezone "{}" but I have timezone "{}"'.format(timeData_Point_or_Slot.tz, last_timeData_Point_or_Slot.tz))
         
             else:

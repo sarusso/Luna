@@ -84,7 +84,7 @@ class DataTimePointsAggregator(Aggregator):
                                                       span     = timeSlotSpan,
                                                       coverage = 0.0) 
                 
-                logger.info('Done aggregating, slot: %s', dataTimeSlot)
+                logger.debug('Done aggregating, slot: %s', dataTimeSlot)
                 return dataTimeSlot
 
         #--------------------------------------------
@@ -226,7 +226,7 @@ class DataTimePointsAggregator(Aggregator):
                                               coverage = Slot_coverage)
 
         # Return results
-        logger.info('Done aggregating, slot: %s', dataTimeSlot)
+        logger.debug('Done aggregating, slot: %s', dataTimeSlot)
         return dataTimeSlot
     
 
@@ -385,7 +385,7 @@ class DataTimeSeriesAggregatorProcess(object):
                     # If we are in the pre-first slot, just silently spin a new slot:
                     if slot_start_dt is not None:
                                 
-                        logger.info('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
+                        logger.debug('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
 
                         # Aggregate
                         aggregator_results = self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
@@ -414,7 +414,7 @@ class DataTimeSeriesAggregatorProcess(object):
                     if prev_dataTimePoint:
                         filtered_dataTimeSeries.append(prev_dataTimePoint)
 
-                    logger.info('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
+                    logger.debug('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
                     
                     # If last slot mark process as ended:
                     if dataTimePoint.dt >= end_dt:
@@ -442,7 +442,7 @@ class DataTimeSeriesAggregatorProcess(object):
             # 1) Close the last slot and aggreagte it. You should never do it unless you knwo what you are doing
             if filtered_dataTimeSeries:
     
-                logger.info('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
+                logger.debug('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
       
                 # Aggregate
                 aggregator_results =  self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
@@ -465,7 +465,7 @@ class DataTimeSeriesAggregatorProcess(object):
             # TODO...
 
 
-        logger.info('Aggregation process ended, processed {} DataTimePoints.'.format(count))
+        logger.debug('Aggregation process ended, processed {} DataTimePoints.'.format(count))
  
     #------------------
     #  Get results

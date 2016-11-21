@@ -18,7 +18,6 @@ class AVG(Operation):
     @staticmethod
     def compute_on_Points(dataSeries, start_Point, end_Point):
            
-           
         sum = 0.0
         
         # Compute total lenght
@@ -80,13 +79,28 @@ class AVG(Operation):
                 prev_dataPoint_validiy_region_end = prev_dataPoint_validiy_region_end if  this_dataPoint_validiy_region_start > prev_dataPoint_validiy_region_end else this_dataPoint_validiy_region_start
                 
                 # Set correct weight
-                if this_dataPoint_validiy_region_start < prev_dataPoint_validiy_region_end: 
-                    prev_weight = (this_dataPoint_validiy_region_start.operation_value - prev_dataPoint_validiy_region_start.operation_value)
+                if this_dataPoint_validiy_region_start < prev_dataPoint_validiy_region_end: # gt is correctly handled
+                    #case='A'
+                    prev_weight = (this_dataPoint_validiy_region_start.operation_value - prev_dataPoint_validiy_region_start.operation_value) # ..Sub is not?
                 else:
+                    #case='B'
                     prev_weight = (prev_dataPoint_validiy_region_end.operation_value - prev_dataPoint_validiy_region_start.operation_value)
                     
                 if prev_weight<0:
-                    raise ConsistencyException('Got negative weight: {}. Boundary conditions: prev_dataPoint={}, this_dataPoint={}'.format(prev_weight, prev_dataPoint, this_dataPoint))
+                    # This happens in case the prev point is not contained at all (including the validity region) in the current slot.
+                    # Set prev_weight= 0 to skip the point. TODO: improve this part
+                    prev_weight = 0
+                    
+                    # DEBUG of the above
+                    #print 'case:', case
+                    #print 'this_dataPoint_validiy_region_start.operation_value', this_dataPoint_validiy_region_start.operation_value
+                    #print 'prev_dataPoint_validiy_region_start.operation_value', prev_dataPoint_validiy_region_start.operation_value 
+                    #print 'prev_dataPoint_validiy_region_end.operation_value', prev_dataPoint_validiy_region_end.operation_value      
+                    #for point in dataSeries:
+                    #    print point
+                    #    print point.validity_region.start
+                    #    print point.validity_region.end  
+                    #raise ConsistencyException('Got negative weight: {}. Boundary conditions: prev_dataPoint={}, this_dataPoint={}'.format(prev_weight, prev_dataPoint, this_dataPoint))
                 
                 # Compute
                 sum += ( prev_weight * prev_dataPoint.data.operation_value )
