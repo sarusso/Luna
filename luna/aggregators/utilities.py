@@ -46,6 +46,7 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
     prev_dataPoint_valid_until = None
     missing_coverage = None
     validity_region_presence = None
+    empty_dataSeries = True
 
     for this_dataPoint in dataSeries:
         
@@ -67,7 +68,7 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
                 validity_region_presence = True
             except AttributeError:
                 if validity_region_presence is True:
-                    raise InputException('Got DataPoint with a validity region but the previous one(s) did not have it') 
+                    raise InputException('Got DataPoint without a validity region but the previous one(s) did not have it') 
                 prev_dataPoint_valid_until = this_dataPoint.Point_part
                 validity_region_presence = False
             # Then continue
@@ -98,6 +99,10 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
         # Okay, now we have all the values we need:
         # 1) prev_dataPoint_valid_until
         # 2) this_dataPoint_valid_from
+        
+        # Also, if we are here it also means that we have valid data
+        if empty_dataSeries:
+            empty_dataSeries=False
 
         # Compute coverage
         # TODO: and idea could also to initialize Spans and sum them
@@ -116,6 +121,7 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
 
         # Update previous dataPoint Validity:
         prev_dataPoint_valid_until = this_dataPoint_valid_until
+        
 
     # Compute the coverage until the end point
     if prev_dataPoint_valid_until is not None:
@@ -126,7 +132,11 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
                 missing_coverage = (end_Point - prev_dataPoint_valid_until).values[0]
     
     # Convert missing_coverage_s_is in percentage
-    if missing_coverage is not None:
+        
+    if empty_dataSeries:
+        coverage = 0.0 # Return zero coverage if empty
+    
+    elif missing_coverage is not None :
         coverage = 1.0 - float(missing_coverage) / ( end_Point.values[0] - start_Point.values[0] ) 
         
         # Fix boundaries # TODO: understand better this part
@@ -136,8 +146,7 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
         if coverage > 1:
             coverage = 1.0
             #raise ConsistencyException('Got >1 coverage!! {}'.format(coverage))
-
-            
+    
     else:
         coverage = 1.0
         

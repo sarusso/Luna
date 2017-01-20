@@ -1,5 +1,4 @@
 import unittest
-from luna.datatypes.composite import DataTimePoint
 from luna.datatypes.dimensional import *
 from luna.common.exceptions import InputException
 from luna.spacetime.time import dt, TimeSlotSpan
@@ -116,11 +115,18 @@ class test_dimensional(unittest.TestCase):
         end_Point1 = Point(labels=["a","b"], values=[9,13])
         end_Point2 = Point(labels=["a","b"], values=[9,14])
         end_Point3 = Point(labels=["a"], values=[9])
+        end_Point4 = Point(labels=["a","b"], values=[7,10])
         
+
+        # Floating Slot
+        slot0 = Slot(span=SlotSpan(value=[4,5]), labels=['a', 'b'])
+        
+        # Slots with start and end
         slot1 = Slot(start=start_Point1, end=end_Point1)
         slot2 = Slot(start=start_Point1, end=end_Point1)
         slot3 = Slot(start=start_Point1, end=end_Point2)
         slot4 = Slot(start=start_Point2, end=end_Point3)
+        slot5 = Slot(start=start_Point1, end=end_Point4) 
         
         
         # Test that the span has been correctly set:
@@ -140,10 +146,10 @@ class test_dimensional(unittest.TestCase):
         with self.assertRaises(InputException):
             _ = Slot(start=start_Point1, end=end_Point3)
         
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(InputException):
             _ = Slot(start=start_Point1, end=2)
             
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(InputException):
             _ = Slot(start=1, end=start_Point2)
 
         # Test equality
@@ -156,36 +162,44 @@ class test_dimensional(unittest.TestCase):
         # TODO: FIX THIS (and the above mess, WHY there is an AssertionError?!
         #self.assertNotEqual(slot1,slot2)    
         self.assertEqual(slot1,slot2) 
-        
-
-            
+                
         self.assertNotEqual(slot1,slot3)
         self.assertNotEqual(slot1,slot4)
 
         # Test lables
         self.assertEqual(slot1.labels, ['a','b'])
         
-        # Test values
-        # No if Slot extends Region
-        #self.assertEqual(slot1.values, [5, 8])
-        #
-        # Test accessing values by index
-        #self.assertEqual(slot1.valuesdict.a,5)
-
-        # TODO: Missing tests with type (the tests are in test_TimeSlot), we should define a TestSlotType SlotType mock or something...
-        
         # Test deltas
         self.assertEqual(slot1.deltas, [4,5])
+        self.assertEqual(slot0.deltas, [4,5])
         
-        # Not anchored Slot raise an error:
-        with self.assertRaises(InputException):
-            _ = Slot(span=Span(value=[2,3]), labels=['a','b'])
+        # Slots are also allowed with just the span..
+        slot = Slot(span=SlotSpan(value=[2,3]), labels=['a','b'])
+        self.assertEqual(slot.anchor, None)
+        
+        #..and can be anchored afterwards:
+        slot._anchor_to(start_Point1)
+        self.assertEqual(slot.anchor, start_Point1)
+
+
+        # Test the symmetry check
+        self.assertFalse(slot1.is_symmetric) # delats = [4.0, 5.0]
+        self.assertTrue(slot5.is_symmetric)  # deltas = [2.0, 2.0]
+        self.assertFalse(slot0.is_symmetric)  # deltas = [  4,   5]
+
+
+
+        # TODO: Missing tests with type (the tests are in test_TimeSlot), we should define a TestSlotType SlotType mock or something...                       
+        # TODO: test that you cannot ask for start/end if the slot is not anchored.
+        
+        
         
         #-----------------------------------------------------------------------------
         # TODO: fix the tests by removing the ones here and adding new proper ones
         #-----------------------------------------------------------------------------
 
-        #self.assertEqual(slot5.anchor, None)
+        self.assertEqual(slot0.anchor, None)
+        self.assertEqual(slot5.anchor, Point(labels=["a","b"], values=[6,9]))
         #self.assertEqual(slot5.orientation, None)
         #self.assertEqual(slot5.start, None)
         #self.assertEqual(slot5.end, None)
@@ -264,12 +278,24 @@ class test_dimensional(unittest.TestCase):
 
     def test_TimeSlot(self):
         start_timePoint = TimePoint(dt=dt(2015,2,27,13,0,0, tzinfo='UTC'))
+        center_timePoint = TimePoint(dt=dt(2015,2,27,13,30,0, tzinfo='UTC'))
         end_timePoint = TimePoint(dt=dt(2015,2,27,14,0,0, tzinfo='UTC'))
         
-        # Test basic behaviour with no span
+        # Test basic behavior with no span but start/end (not floating)
         timeSlot = TimeSlot(start=start_timePoint, end=end_timePoint)
         self.assertEqual(timeSlot.start, start_timePoint)
         self.assertEqual(timeSlot.end, end_timePoint)
+ 
+
+        # Test basic behavior with span but floating
+        timeSlot_floating = TimeSlot(span=TimeSlotSpan('1m'), labels=['t'])
+        timeSlot_floating = TimeSlot(span=TimeSlotSpan('1m'))
+        
+        with self.assertRaises(InputException):
+            _ = TimeSlot(span=TimeSlotSpan('1m'), labels=['a'])
+        
+        #self.assertEqual(timeSlot_floating) WORKING HERE
+        
  
         # Test behaviour with start-end-span  
         timeSlotSpan = TimeSlotSpan("1h")
@@ -286,11 +312,23 @@ class test_dimensional(unittest.TestCase):
         self.assertEqual(timeSlot.end, end_timePoint)
 
 
-        # Test that a 'floating' timeslot is not allowed:
-        timeSlotSpan = TimeSlotSpan("1h")
-        with self.assertRaises(InputException):
-            timeSlot = TimeSlot(span=timeSlotSpan)
+        # Test that a 'floating' timeslot is allowed:        
+        timeSlot = TimeSlot(span="1h")
+        self.assertEqual(timeSlot.anchor, None)
+        self.assertEqual(timeSlot.start, None)
+        self.assertEqual(timeSlot.end, None)
+        self.assertEqual(timeSlot.center, None)
 
+        # but it can be anchored (by default to the center)
+        timeSlot._anchor_to(center_timePoint)
+        self.assertEqual(timeSlot.anchor, center_timePoint)
+        self.assertEqual(timeSlot.start, start_timePoint)
+        self.assertEqual(timeSlot.center, center_timePoint)
+        self.assertEqual(timeSlot.end, end_timePoint)
+        
+        # TODO: cannot compare with None and Points (try this: self.assertEqual(timeSlot.anchor, center_timePoint))
+        
+  
 
     def test_SpaceSlot(self):
         pass
@@ -334,11 +372,6 @@ class test_dimensional(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             _ = span.get_end(start=None)    
 
-        with self.assertRaises(NotImplementedError):
-            _ = span.is_symmetric
-
-
-        
 
         #--------------------
         # Test Slot Span
@@ -378,11 +411,6 @@ class test_dimensional(unittest.TestCase):
         with self.assertRaises(NotImplementedError):
             _ = span.get_end(start=None)    
 
-        # Test the symmetry check
-        self.assertTrue(slotSpan1.is_symmetric)     # [5,5]
-        self.assertFalse(slotSpan2.is_symmetric)    # [3,4]
-        self.assertTrue(slotSpan3.is_symmetric)     # [0,0]
-        self.assertFalse(slotSpan4.is_symmetric)    # [-3,-5]
 
     def tearDown(self):
         pass
@@ -394,6 +422,193 @@ class test_dimensional(unittest.TestCase):
 
 
 
+
+from luna.datatypes.dimensional import DataTimeSeries, DataTimePoint, DataTimeSlot, TimePoint, DataPoint
+from luna.datatypes.dimensional import Point, Slot, TimeSlot
+from luna.datatypes.auxiliary import Span, SlotSpan
+from luna.common.exceptions import InputException
+from luna.spacetime.time import TimeSlotSpan
+
+
+class test_dataPoint(unittest.TestCase):
+
+    def setUp(self):
+        pass
+    
+    def test_init(self):
+        
+        with self.assertRaises(InputException):
+            _ = DataPoint({'g': 1000}, data=None)
+         
+                    
+        dataPoint1 = DataPoint({'g': 1000}, data='string_data1')
+        dataPoint2 = DataPoint({'g': 1000}, data='string_data2')
+        dataPoint3 = DataPoint({'g': 1000}, data='string_data3',
+                                validity_region = Slot(span=SlotSpan(value=[60]), labels=['g']))
+        
+        self.assertEqual(dataPoint1.data,'string_data1')
+        self.assertEqual(dataPoint2.data,'string_data2')
+        self.assertEqual(dataPoint3.data,'string_data3')
+        
+        # TODO: here we are indirectly testing the valitiy region, which is the slot
+        self.assertTrue(isinstance(dataPoint3.validity_region, Slot))
+        self.assertEqual(dataPoint3.validity_region.start, Point({'g': 970}))
+        self.assertEqual(dataPoint3.validity_region.center, Point({'g': 1000}))
+        self.assertEqual(dataPoint3.validity_region.anchor, Point({'g': 1000}))
+        self.assertEqual(dataPoint3.validity_region.end, Point({'g': 1030}))
+        
+        
+        
+        
+class test_dataTimePoint(unittest.TestCase):
+
+    def setUp(self):
+        pass
+    
+    def test_init(self):
+        
+        # TODO: fix this, should work:
+        # DataTimePoint(label_t=1000, data='string_data')
+        
+        with self.assertRaises(InputException):
+            _ = DataTimePoint(t=1000, data=None)
+
+        with self.assertRaises(InputException):
+            _ = DataTimePoint({'g': 1000}, data='string_data')     
+                    
+        dataTimePoint1 = DataTimePoint(t=1000, data='string_data1')
+        dataTimePoint2 = DataTimePoint(t=1000, data='string_data2')
+        dataTimePoint3 = DataTimePoint(t=1000, data='string_data3', validity_region=TimeSlot(span=TimeSlotSpan('60s')))
+        
+        self.assertEqual(dataTimePoint1.data,'string_data1')
+        self.assertEqual(dataTimePoint2.data,'string_data2')
+        self.assertEqual(dataTimePoint3.data,'string_data3')
+        
+        # TODO: here we are indirectly testing the validity region, which is the slot
+        self.assertTrue(isinstance(dataTimePoint3.validity_region, TimeSlot))
+        self.assertEqual(dataTimePoint3.validity_region.start, TimePoint(t=970))
+        self.assertEqual(dataTimePoint3.validity_region.center, TimePoint(t=1000))
+        self.assertEqual(dataTimePoint3.validity_region.anchor, TimePoint(t=1000))
+        self.assertEqual(dataTimePoint3.validity_region.end, TimePoint(t=1030))
+
+
+        # The following test interpolability of the concept, i.e. a SlotSpan applied to DataTimePoint
+        # TODO: to make it work, implement the persistent trustme switch in DataPoint
+        #dataTimePoint4 = DataTimePoint(t=1000, data='string_data3', validity_region_span=SlotSpan(value=[60]), trustme=True)
+        #self.assertEqual(dataTimePoint4.data,'string_data3')
+        #self.assertTrue(isinstance(dataTimePoint4.validity_region, Slot))
+        #self.assertEqual(dataTimePoint4.validity_region.start, TimePoint(t=970))
+        #self.assertEqual(dataTimePoint4.validity_region.center, TimePoint(t=1000))
+        #self.assertEqual(dataTimePoint4.validity_region.anchor, TimePoint(t=1000))
+        #self.assertEqual(dataTimePoint4.validity_region.end, TimePoint(t=1030))
+
+
+    def tearDown(self):
+        pass
+
+
+class test_dataTimePoint_DataTimeSeries(unittest.TestCase):
+
+    def setUp(self):
+        
+        # Ref Time Series #1
+        dataTimeSeries = DataTimeSeries(index=False)
+        for i in range(10000):
+            data = Point(labels=["power_W", "current_A", "voltage_V"], values=[113.67+i, 3124.67+i, 23.76+i])
+            dataTimePoint = DataTimePoint(t = 1000000000 + (i*60), tz="Europe/Rome", data=data, )
+            dataTimeSeries.append(dataTimePoint)
+        self.ref_dataTimeSeries_1 = dataTimeSeries
+        
+        # Ref Time Series #1
+        dataTimeSeries = DataTimeSeries(index=True)
+        for i in range(10000):
+            data = Point(labels=["power_W", "current_A", "voltage_V"], values=[113.67+i, 3124.67+i, 23.76+i])
+            dataTimePoint = DataTimePoint(t = 1000000000 + (i*60), tz="Europe/Rome", data=data, )
+            dataTimeSeries.append(dataTimePoint)
+        self.ref_dataTimeSeries_2 = dataTimeSeries
+
+    def test_init(self):
+        pass
+    
+    def test_equality(self):
+        self.assertEqual(self.ref_dataTimeSeries_1 , self.ref_dataTimeSeries_2)
+
+    def test_iterator(self):
+        for i, dataTimePoint in enumerate(self.ref_dataTimeSeries_1):
+            self.assertEqual(dataTimePoint.t, 1000000000 + (i*60))  
+    
+    def test_unroll(self):
+        # Test unroll
+        for item in self.ref_dataTimeSeries_1:
+            last_item1 = item
+        for item in self.ref_dataTimeSeries_1:
+            last_item2 = item
+        self.assertEqual(last_item1,last_item2)
+              
+    def test_index(self):
+        
+        # Test without index
+        for i in range(10000):
+            self.assertEqual(self.ref_dataTimeSeries_1[1000000000 + (i*60)].t, 1000000000 + (i*60))
+
+        # Test with index
+        for i in range(10000):
+            self.assertEqual(self.ref_dataTimeSeries_2[1000000000 + (i*60)].t, 1000000000 + (i*60))
+
+    def test_append_consistency(self):
+        
+        data1 = Point(labels=["x","y", "z"], values=[1,2,3])
+        data2 = Point(labels=["x","y", "z"], values=[4,5,6])
+        data3 = Point(labels=["x","y"], values=[7,8]) 
+        dataTimePoint1=DataTimePoint(t=60, data=data1, tz="Europe/Rome")
+        dataTimePoint2=DataTimePoint(t=120, data=data2, tz="UTC")
+        dataTimePoint3=DataTimePoint(t=180, data=data3, tz="Europe/Rome")
+        dataTimeSeries=DataTimeSeries()
+        dataTimeSeries.append(dataTimePoint1)
+        
+        with self.assertRaises(InputException):
+            dataTimeSeries.append(dataTimePoint2)
+        
+        with self.assertRaises(InputException):
+            dataTimeSeries.append(dataTimePoint3)
+
+
+    def tearDown(self):
+        pass
+
+
+
+
+class test_dataTimeSlot_DataTimeSeries(unittest.TestCase):
+
+    def test_one(self):
+               
+        # Test without TimeSlotType
+        dataTimeSeries = DataTimeSeries(index=False)
+        for i in range(10):
+            data = Point(labels=["power_W", "current_A", "voltage_V"], values=[113.67+i, 3124.67+i, 23.76+i])
+            dataTimeSlot = DataTimeSlot(start = TimePoint(t = 1000000020 + (i*60), tz="Europe/Rome"),
+                                        end   = TimePoint(t = 1000000020 + (i+1)*60, tz="Europe/Rome"),
+                                        data  = data)
+            dataTimeSeries.append(dataTimeSlot)
+            
+        self.assertEqual(dataTimeSeries.tz, "Europe/Rome")
+
+        # Test with TimeSLotType
+        dataTimeSeries = DataTimeSeries(index=False) # TODO: if you omit this line you get an error (point added < start: add test and better printing for the slots)
+        for i in range(10):
+            data = Point(labels=["power_W", "current_A", "voltage_V"], values=[113.67+i, 3124.67+i, 23.76+i])
+            dataTimeSlot = DataTimeSlot(start = TimePoint(t = 1000000020 + (i*60), tz="Europe/Rome"),
+                                        end   = TimePoint(t = 1000000020 + (i+1)*60, tz="Europe/Rome"),
+                                        data  = data,
+                                        span  = TimeSlotSpan("1m"))
+            dataTimeSeries.append(dataTimeSlot)
+            
+        self.assertEqual(dataTimeSeries.tz, "Europe/Rome")
+
+ 
+
+# TODO: missing tests for class PhysicalDataPoint (test_PhysicalDataPoint)
 
 
 

@@ -1,6 +1,6 @@
-from luna.datatypes.composite import DataTimePoint, DataTimeSlot
-from luna.datatypes.composite import PhysicalDataPoint, PhysicalDataSlot, DimensionalDataTimePoint, PhysicalData, PhysicalDataTimeSlot
-from luna.datatypes.composite import PhysicalDataTimePoint
+from luna.datatypes.dimensional import DataTimePoint, DataTimeSlot
+from luna.datatypes.dimensional import PhysicalDataPoint, PhysicalDataSlot, DimensionalDataTimePoint, PhysicalData, PhysicalDataTimeSlot
+from luna.datatypes.dimensional import PhysicalDataTimePoint
 from luna.datatypes.dimensional import TimeSlot, TimePoint
 from luna.spacetime.time import TimeSlotSpan
 from luna.aggregators import operations

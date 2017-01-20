@@ -1,8 +1,8 @@
 from luna.datatypes.dimensional import PhysicalData, TimePoint, TimeSlot
-from luna.datatypes.composite import DataTimeSeries, PhysicalDataTimePoint, PhysicalDataTimeSlot, DataTimePoint, DataPoint, DataTimeSlot
+from luna.datatypes.dimensional import DataTimeSeries, PhysicalDataTimePoint, PhysicalDataTimeSlot, DataTimePoint, DataPoint, DataTimeSlot
 from luna.storage import Storage
-from luna.spacetime.time import s_from_dt
-from luna.datatypes.composite import StreamingDataTimeSeries, DataTimeStream
+from luna.spacetime.time import s_from_dt, dt_from_s
+from luna.datatypes.dimensional import StreamingDataTimeSeries, DataTimeStream
 from luna.common.exceptions import InputException, ConsistencyException, StorageException
 import sqlite3
 import os
@@ -111,6 +111,9 @@ class SQLiteDataTimeStream(DataTimeStream):
             # Hanlde the case of the Points
             if issubclass(DataTimePoint, self.data_type):
                 values = list(db_data[2:])
+                # Skip if the data is saved as None
+                if None in values:
+                    continue
                 try:
                     data = self.sensor.Points_type.data_type(labels=self.labels, values = values)
                 except InputException as e:
@@ -119,13 +122,16 @@ class SQLiteDataTimeStream(DataTimeStream):
                     DataTime_Point_or_Slot = self.sensor.Points_type(t                    = db_data[0],
                                                                      tz                   = self.sensor.timezone,
                                                                      data                 = data,
-                                                                     validity_region_span = self.sensor.Points_validity_region_span)
+                                                                     validity_region      = self.sensor.Points_validity_region)
     
             # Hanlde the case of the Slots
             elif issubclass(DataTimeSlot, self.data_type):
                 values = list(db_data[4:-1])
+                # Skip if the data is saved as None
+                if None in values:
+                    continue
                 try:
-                    data = self.sensor.Slots_type.data_type(labels=self.labels, values = values)
+                    data = self.sensor.Slots_type.data_type(labels=self.labels, values=values)
                 except InputException as e:
                     logger.error("Could not initialize {} with labels={} and values={}, error: '{}'".format(self.sensor.Slots_type.data_type, self.labels, values, e)) 
                 else:
@@ -298,7 +304,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
                     storage_structure_checked = True
                 
                 labels_list = ', '.join([fix_label_to_sqlite(label) for label in sensor.Points_data_labels])
-                values_list = ', '.join([str(value) for value in item.data.values])
+                values_list = ', '.join([str(value) if value is not None else 'NULL' for value in item.data.values])
                 logger.debug("Inserting point with t=%s, labels=%s, values=%s", item.t, labels_list, values_list)
                 cur.execute("INSERT OR REPLACE INTO {}_DataTimePoints(ts, sid, {}) VALUES ({},'{}',{})".format(sensor.__class__.__name__, labels_list, item.t, sensor.id,  values_list))       
 
@@ -311,7 +317,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
                     storage_structure_checked = True
                 
                 labels_list = ', '.join([fix_label_to_sqlite(label) for label in sensor.Slots_data_labels])
-                values_list = ', '.join([str(value) for value in item.data.values])
+                values_list = ', '.join([str(value) if value is not None else 'NULL' for value in item.data.values])
                 logger.debug("Inserting slot with start=%s, end=%s, lables=%s, values=%s", item.start, item.end, labels_list, values_list)
                 if item.coverage is None:
                     query = "INSERT OR REPLACE INTO {}_DataTimeSlots(start_ts, end_ts, sid, span, {}) VALUES ({}, {},'{}','{}',{})".format(sensor.__class__.__name__, labels_list, item.start.t, item.end.t, sensor.id, item.span, values_list)
@@ -332,8 +338,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
     #--------------------
     #  GET
     #--------------------      
-    def get(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotSpan=None, cached=False, trustme=False):
-        
+    def get(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotSpan=None, cached=False, trustme=False, last=False):
         if not data_id and not sensor:
             raise InputException('Please give at least one of data_id and sensor')
         
@@ -341,19 +346,21 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
             raise NotImplementedError('Cannot yet get data without a sensor')
             #sensor =  NoSensor('cbqiy66') <- COuld be an approach?
         
+        # is data_id deprecated?
+        
         # Load data. from and to are UTC. left included, right excluded, as always.
         
         # Decide if to load Points or Slots 
         if not timeSlotSpan:
-            return self._get_DataTimePoints(data_id=data_id, sensor=sensor, from_dt=from_dt, to_dt=to_dt, cached=cached, trustme=trustme)
+            return self._get_DataTimePoints(data_id=data_id, sensor=sensor, from_dt=from_dt, to_dt=to_dt, cached=cached, trustme=trustme, last=last)
         else:
-            return self._get_DataTimeSlots(data_id=data_id, sensor=sensor, from_dt=from_dt, to_dt=to_dt, timeSlotSpan=timeSlotSpan, cached=cached, trustme=trustme)
+            return self._get_DataTimeSlots(data_id=data_id, sensor=sensor, from_dt=from_dt, to_dt=to_dt, timeSlotSpan=timeSlotSpan, cached=cached, trustme=trustme, last=last)
             
 
     #---------------------
     # Get DataTimePoints
     #---------------------
-    def _get_DataTimePoints(self, data_id=None, sensor=None, from_dt=None, to_dt=None, cached=False, trustme=False):
+    def _get_DataTimePoints(self, data_id=None, sensor=None, from_dt=None, to_dt=None, cached=False, trustme=False, last=False):
 
         # Initialize cursor
         cur = self.conn.cursor()
@@ -378,12 +385,12 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
         if from_dt and to_dt:
             from_s = s_from_dt(from_dt)
             to_s   = s_from_dt(to_dt)
-            query  = 'SELECT * from {}_DataTimePoints where sid="{}" and ts >= {} and ts < {}'.format(sensor.__class__.__name__, sensor.id, from_s, to_s)
+            query  = 'SELECT * from {}_DataTimePoints WHERE sid="{}" AND ts >= {} AND ts < {} ORDER BY ts'.format(sensor.__class__.__name__, sensor.id, from_s, to_s)
         elif (not from_dt and to_dt) or (from_dt and not to_dt):
             raise InputException('Sorry, please give both from_dt and to_dt or none.')
         else:
             # Select all data
-            query = 'SELECT * from {}_DataTimePoints where sid="{}"'.format(sensor.__class__.__name__, sensor.id)
+            query = 'SELECT * FROM {}_DataTimePoints WHERE sid="{}" ORDER BY ts'.format(sensor.__class__.__name__, sensor.id)
 
         # Create the DataStream
         dataTimeStream = SQLiteDataTimeStream(cur=cur, query=query, sensor=sensor, data_type=DataTimePoint, labels=labels)
@@ -397,7 +404,7 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
     #---------------------
     # Get DataTimeSlots
     #---------------------
-    def _get_DataTimeSlots(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotSpan=None, cached=False, trustme=False):
+    def _get_DataTimeSlots(self, data_id=None, sensor=None, from_dt=None, to_dt=None, timeSlotSpan=None, cached=False, trustme=False, last=False):
 
         # Initialize cursor
         cur = self.conn.cursor()
@@ -418,17 +425,25 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
             if label.lower() not in labels:
                 raise ConsistencyException('Sensor label "{}" not found in  {}'.format(label, labels))
  
-     
-        # Use the iterator of SQLite (streaming)
+        # Get the last point
+        if last:
+            query  = 'SELECT end_ts from {}_DataTimeSlots WHERE sid="{}" AND span="{}" ORDER BY end_ts DESC LIMIT 1'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan)
+            result = cur.execute(query).fetchone()
+            if result:
+                return dt_from_s(result[0],tz=sensor.timezone)
+            else:
+                return None
+
+        # Prepare the query for the SQLiteDataTimeStream 
         if from_dt and to_dt:
             from_s = s_from_dt(from_dt)
             to_s   = s_from_dt(to_dt)
-            query  = 'SELECT * from {}_DataTimeSlots where sid="{}" and span="{}" and start_ts >= {} and end_ts <= {}'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan, from_s, to_s)
+            query  = 'SELECT * from {}_DataTimeSlots WHERE sid="{}" AND span="{}" AND start_ts >= {} and end_ts <= {} ORDER BY start_ts'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan, from_s, to_s)
         elif (not from_dt and to_dt) or (from_dt and not to_dt):
             raise InputException('Sorry, please give both from_dt and to_dt or none.')
         else:
             # Select all data
-            query = 'SELECT * from {}_DataTimeSlots where sid="{}" and span="{}"'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan)
+            query = 'SELECT * from {}_DataTimeSlots WHERE sid="{}" AND span="{}" ORDER BY start_ts'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan)
 
         # Create the DataStream
         dataTimeStream = SQLiteDataTimeStream(cur=cur, query=query, sensor=sensor, data_type=DataTimeSlot, labels=labels, timeSlotSpan=timeSlotSpan)

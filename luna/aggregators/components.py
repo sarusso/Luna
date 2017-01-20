@@ -1,5 +1,5 @@
 from luna.datatypes.dimensional import TimePoint, TimeSlot
-from luna.datatypes.composite import DataTimePoint, DataTimeSlot, PhysicalData, DataTimeSeries, DataPoint, DataSlot
+from luna.datatypes.dimensional import DataTimePoint, DataTimeSlot, PhysicalData, DataTimeSeries, DataPoint, DataSlot
 from luna.datatypes.auxiliary import PhysicalQuantity
 from luna.common.exceptions import ConsistencyException, ConfigurationException, InputException, NoDataException
 from luna.aggregators.utilities import compute_1D_coverage
@@ -39,7 +39,7 @@ class DataTimePointsAggregator(Aggregator):
     def __init__(self, Sensor):
         self.Sensor = Sensor
     
-    def aggregate(self, dataTimeSeries, start_dt, end_dt, timeSlotSpan, allow_None_data=False):
+    def aggregate(self, dataTimeSeries, start_dt, end_dt, timeSlotSpan, raise_if_no_data=False):
 
         #-------------------
         # Sanity checks
@@ -65,14 +65,15 @@ class DataTimePointsAggregator(Aggregator):
         #-------------------
         # Compute coverage
         #-------------------
-        logger.debug(' Now computing coverage...')
         Slot_coverage = compute_1D_coverage(dataSeries  = dataTimeSeries,
                                             start_Point = start_Point,
                                             end_Point   = end_Point)
 
-        # If no coverage return list of None
+        # If no coverage return list of None in None data is allowed, otherwise raise.
         if Slot_coverage == 0.0:
-            if allow_None_data:
+            if raise_if_no_data:
+                raise NoDataException('This slot has coverage of 0.0, cannot compute any data! (start={}, end={})'.format(start_Point, end_Point))
+            else:
                 Slot_physicalData = self.Sensor.Points_type.data_type(labels  = Slot_data_labels_to_generate,
                                                                       values  = [None for _ in Slot_data_labels_to_generate], # Force "trustme" to allow None in data
                                                                       trustme = True)
@@ -83,10 +84,8 @@ class DataTimePointsAggregator(Aggregator):
                                                       span     = timeSlotSpan,
                                                       coverage = 0.0) 
                 
-                logger.info('Done aggregating, slot: %s', dataTimeSlot)
+                logger.debug('Done aggregating, slot: %s', dataTimeSlot)
                 return dataTimeSlot
-            else:
-                raise NoDataException('This slot has coverage of 0.0, cannot compute any data! (start={}, end={})'.format(start_Point, end_Point))
 
         #--------------------------------------------
         # Understand the labels to produce and to 
@@ -227,7 +226,7 @@ class DataTimePointsAggregator(Aggregator):
                                               coverage = Slot_coverage)
 
         # Return results
-        logger.info('Done aggregating, slot: %s', dataTimeSlot)
+        logger.debug('Done aggregating, slot: %s', dataTimeSlot)
         return dataTimeSlot
     
 
@@ -250,14 +249,14 @@ class DataTimeSeriesAggregatorProcess(object):
     aggregate in 15 minutes slots). The DataTimeSeriesAggregatorProcess is STATEFUL'''
 
     
-    def __init__(self, timeSlotSpan, Sensor, data_to_aggregate, allow_None_data=False):
+    def __init__(self, timeSlotSpan, Sensor, data_to_aggregate, raise_if_no_data=False):
         ''' Initiliaze the aggregator process, of a given timeSlotSpan.'''
 
         # Arguments
         self.timeSlotSpan            = timeSlotSpan
         self.Sensor                  = Sensor
         self.data_to_aggregate       = data_to_aggregate
-        self.allow_None_data         = allow_None_data
+        self.raise_if_no_data         = raise_if_no_data
         
         # Internal vars
         self.results_dataTimeSeries  = DataTimeSeries()
@@ -296,7 +295,7 @@ class DataTimeSeriesAggregatorProcess(object):
         # For now start/end not set is not supported:
         if not start_dt or not end_dt:
             raise NotImplementedError('Empty start/end not yet implemented') 
-        
+
         # Handle the rounded case
         if rounded:
             start_dt = self.timeSlotSpan.round_dt(start_dt) if start_dt else None
@@ -326,10 +325,15 @@ class DataTimeSeriesAggregatorProcess(object):
                                                                                                        end_dt,
                                                                                                        self.Sensor.__class__.__name__,
                                                                                                        dataTimeSeries))
+        # Counters
         callback_counter = 1
+        count = 0
         
         for dataTimePoint in dataTimeSeries:
 
+            # Increase counter
+            count +=1
+            
             # Set start_dt if not already done
             if not start_dt:
                 start_dt = self.timeSlotSpan.timeInterval.round_dt(dataTimePoint.dt) if rounded else dataTimePoint.dt
@@ -381,14 +385,14 @@ class DataTimeSeriesAggregatorProcess(object):
                     # If we are in the pre-first slot, just silently spin a new slot:
                     if slot_start_dt is not None:
                                 
-                        logger.info('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
+                        logger.debug('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
 
                         # Aggregate
                         aggregator_results = self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
                                                                        start_dt           = slot_start_dt,
                                                                        end_dt             = slot_end_dt,
                                                                        timeSlotSpan       = self.timeSlotSpan,
-                                                                       allow_None_data    = self.allow_None_data)
+                                                                       raise_if_no_data   = self.raise_if_no_data)
                         # .. and append results 
                         self.results_dataTimeSeries.append(aggregator_results)
                         
@@ -396,7 +400,7 @@ class DataTimeSeriesAggregatorProcess(object):
                         callback_counter +=1
                         if callback_trigger and callback_counter > callback_trigger:
                             if callback:
-                                callback(self, triggerer=self)
+                                callback(self, caller=self)
                                 callback_counter = 1
                     
                     # Create a new slot
@@ -407,9 +411,10 @@ class DataTimeSeriesAggregatorProcess(object):
                     filtered_dataTimeSeries = DataTimeSeries()
                     
                     # Append the previous dataprev_dataTimePoint to the new DataTimeSeries
-                    filtered_dataTimeSeries.append(prev_dataTimePoint)
+                    if prev_dataTimePoint:
+                        filtered_dataTimeSeries.append(prev_dataTimePoint)
 
-                    logger.info('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
+                    logger.debug('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
                     
                     # If last slot mark process as ended:
                     if dataTimePoint.dt >= end_dt:
@@ -437,7 +442,7 @@ class DataTimeSeriesAggregatorProcess(object):
             # 1) Close the last slot and aggreagte it. You should never do it unless you knwo what you are doing
             if filtered_dataTimeSeries:
     
-                logger.info('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
+                logger.debug('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
       
                 # Aggregate
                 aggregator_results =  self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
@@ -452,13 +457,15 @@ class DataTimeSeriesAggregatorProcess(object):
                 callback_counter +=1
                 if callback_trigger and callback_counter > callback_trigger:
                     if callback:
-                        callback(self, triggerer=self)
+                        callback(self, caller=self)
                         callback_counter = 1
                 
 
             # 2) Handle missing slots until the requested end (end_dt)
             # TODO...
 
+
+        logger.debug('Aggregation process ended, processed {} DataTimePoints.'.format(count))
  
     #------------------
     #  Get results
