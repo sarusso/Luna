@@ -400,7 +400,7 @@ class DataTimeSeriesAggregatorProcess(object):
                         callback_counter +=1
                         if callback_trigger and callback_counter > callback_trigger:
                             if callback:
-                                callback(self, triggerer=self)
+                                callback(self, caller=self)
                                 callback_counter = 1
                     
                     # Create a new slot
@@ -457,7 +457,7 @@ class DataTimeSeriesAggregatorProcess(object):
                 callback_counter +=1
                 if callback_trigger and callback_counter > callback_trigger:
                     if callback:
-                        callback(self, triggerer=self)
+                        callback(self, caller=self)
                         callback_counter = 1
                 
 
