@@ -1761,7 +1761,9 @@ class StreamingDataTimeSeries(DataTimeSeries):
         self.__data=value
 
     def force_load(self):
-                
+        
+        logger.warning('Force-loading time series!')
+        
         # Load content levereaging the internal iterator
         self.__data = [item for item in self]
 
