@@ -1,11 +1,11 @@
 
-# Policy for DockerOps .gitignore: ignore ONLY hidden files or very standard one (i.e. pyc, pip-log.txt)
-# No folders like 'dist', 'build', 'download' are ignored due to the obvious risk of huge troubles.
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+*.pyc
 
 # C extensions
 *.so
