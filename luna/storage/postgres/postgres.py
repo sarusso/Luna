@@ -76,7 +76,7 @@ class PostgresDataTimeStream(DataTimeStream):
         
     # Iterator
     def __iter__(self):
-        self.query_cur = self.cur.execute(self.query)
+        self.cur.execute(self.query)
         self.source_acceses += 1
         return self
 
@@ -84,17 +84,10 @@ class PostgresDataTimeStream(DataTimeStream):
         
         # TODO: do we like a while True here?
         while True:
-            
-            try:
-                # Python 2.x
-                # The following will raise StopIteration for us to stop the iterator
-                db_data = self.query_cur.next()
-            
-            except AttributeError:
-                # Python 3.x
-                db_data = self.query_cur.fetchone()
-                if not db_data:
-                    raise StopIteration()
+
+            db_data = self.cur.fetchone()
+            if not db_data:
+                raise StopIteration()
 
             if not self.labels:
                 if issubclass(DataTimePoint, self.data_type):
@@ -422,7 +415,7 @@ class DataTimeSeriesPostgresStorage(PostgresStorage):
  
         # Get the last point
         if last:
-            query  = "SELECT end_ts from {}_DataTimeSlots WHERE sid='{}' AND span='{}' ORDER BY end_ts DESC LIMIT 1".format(sensor.__class__.__name__.lower(), sensor.id, timeSlotSpan)
+            query  = "SELECT end_ts from {}_datatimeslots WHERE sid='{}' AND span='{}' ORDER BY end_ts DESC LIMIT 1".format(sensor.__class__.__name__.lower(), sensor.id, timeSlotSpan)
             cur.execute(query)
             result = cur.fetchone()
             if not result:
@@ -434,14 +427,12 @@ class DataTimeSeriesPostgresStorage(PostgresStorage):
         if from_dt and to_dt:
             from_s = s_from_dt(from_dt)
             to_s   = s_from_dt(to_dt)
-            query  = 'SELECT * from {}_DataTimeSlots WHERE sid="{}" AND span="{}" AND start_ts >= {} and end_ts <= {} ORDER BY start_ts'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan, from_s, to_s)
-            query  = query.lower() 
+            query  = "SELECT * from {}_datatimeslots WHERE sid='{}' AND span='{}' AND start_ts >= {} and end_ts <= {} ORDER BY start_ts".format(sensor.__class__.__name__.lower(), sensor.id, timeSlotSpan, from_s, to_s)
         elif (not from_dt and to_dt) or (from_dt and not to_dt):
             raise InputException('Sorry, please give both from_dt and to_dt or none.')
         else:
             # Select all data
-            query = 'SELECT * from {}_DataTimeSlots WHERE sid="{}" AND span="{}" ORDER BY start_ts'.format(sensor.__class__.__name__, sensor.id, timeSlotSpan)
-            query  = query.lower() 
+            query = "SELECT * from {}_datatimeslots WHERE sid='{}' AND span='{}' ORDER BY start_ts".format(sensor.__class__.__name__.lower(), sensor.id, timeSlotSpan)
 
         # Create the DataStream
         dataTimeStream = PostgresDataTimeStream(cur=cur, query=query, sensor=sensor, data_type=DataTimeSlot, labels=labels, timeSlotSpan=timeSlotSpan)

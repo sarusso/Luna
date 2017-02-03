@@ -1,9 +1,11 @@
+
 from luna.datatypes.dimensional import TimePoint, TimeSlot
 from luna.datatypes.dimensional import DataTimePoint, DataTimeSlot, PhysicalData, DataTimeSeries, DataPoint, DataSlot
 from luna.datatypes.auxiliary import PhysicalQuantity
 from luna.common.exceptions import ConsistencyException, ConfigurationException, InputException, NoDataException
 from luna.aggregators.utilities import compute_1D_coverage
 from luna.spacetime.time import s_from_dt
+from luna.datatypes.dimensional import Slot
 
 #--------------------------
 #    Logger
@@ -315,7 +317,7 @@ class DataTimeSeriesAggregatorProcess(object):
         # Set some support varibales
         slot_start_dt      = None
         slot_end_dt        = None
-        prev_dataTimePoint      = None
+        prev_dataTimePoint      = None # TODO: rename in "item" to be able processing also slots 
         filtered_dataTimeSeries = DataTimeSeries()
         process_ended      = False
 
@@ -330,6 +332,10 @@ class DataTimeSeriesAggregatorProcess(object):
         count = 0
         
         for dataTimePoint in dataTimeSeries:
+
+            # If slot not yet supported
+            if isinstance(dataTimePoint, Slot):
+                raise NotImplementedError('Aggregating slots in slots is not yet supported')
 
             # Increase counter
             count +=1
