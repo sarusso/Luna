@@ -785,7 +785,7 @@ class TimePoint(Point):
                     
                     # Check for coherence of time zone
                     try:
-                        if self._tz != kwargs['values'][0].tzinfo:
+                        if str(self._tz) != str(kwargs['values'][0].tzinfo):
                             raise InputException('Error, explicitly set time zone ({}) differs from datetime timezone ({})'.format(self._tz, kwargs['values'][0].tzinfo))
                     except AttributeError:
                         self._tz = kwargs['values'][0].tzinfo
