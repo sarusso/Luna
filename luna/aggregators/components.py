@@ -298,6 +298,9 @@ class DataTimeSeriesAggregatorProcess(object):
         if not start_dt or not end_dt:
             raise NotImplementedError('Empty start/end not yet implemented') 
 
+        if start_dt >= end_dt:
+                raise InputException('Sorry, start is >= end! (start={}, end={})'.format(start_dt,end_dt))
+            
         # Handle the rounded case
         if rounded:
             start_dt = self.timeSlotSpan.round_dt(start_dt) if start_dt else None
@@ -376,7 +379,7 @@ class DataTimeSeriesAggregatorProcess(object):
 
             if dataTimePoint.dt > slot_end_dt:
                 # If the current slot is outdated:
-                              
+                         
                 # 1) Add this last point to the dataTimeSeries:
                 filtered_dataTimeSeries.append(dataTimePoint)
                  
