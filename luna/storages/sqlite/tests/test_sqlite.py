@@ -5,7 +5,7 @@ from luna.common.exceptions import InputException, StorageException
 from luna.spacetime.time import dt, TimeSlotSpan
 from luna.datatypes.dimensional import TimePoint, Point, PhysicalData
 from luna.sensors import PhysicalDataTimeSensor
-from luna.storage.sqlite import sqlite
+from luna.storages.sqlite import sensor_storage as sqlite
 
 
 # TODO: this should be a generic storage test system, which should be then applied
