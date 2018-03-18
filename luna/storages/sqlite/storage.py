@@ -407,7 +407,7 @@ class SQLiteStorage(Storage):
         if to_t and to_dt:
             raise InputException('Got both from_t and from_dt, please choose one.')
         if to_dt:
-            from_t = s_from_dt(from_dt) 
+            to_t = s_from_dt(to_dt) 
         if to_t and not to_dt:    
             try:
                 to_t = float(to_t)
@@ -510,12 +510,13 @@ class SQLiteStorage(Storage):
             if not self.check_structure_for_DataTimeSlots(can_initialize=False):
                 raise StorageException('{}: Sorry, DataTimeSlots structure not found.')
 
+
         # Prepare the query for the SQLiteDataTimeStream
         if self.TYPE=='Postgres':
             if from_t and to_t:
                 query  = "SELECT * from datatimeslots WHERE id='{}' AND span='{}' AND start_t >= {} and end_t <= {} and tz='{}' ORDER BY start_t".format(id, timeSpan, from_t, to_t, qtz)
             elif (not from_t and to_t) or (from_t and not to_t):
-                raise InputException('Sorry, please give both from_dt and to_dt or none.')
+                raise InputException('Sorry, please give both from_t and t_dt or none.')
             else:
                 # Select all data
                 query = "SELECT * from datatimeslots WHERE id='{}' AND span='{}' and tz='{}' ORDER BY start_t".format(id, timeSpan, qtz)
