@@ -429,7 +429,18 @@ class TimeSlotSpan(SlotSpan):
             return self.PHYSICAL
         else:
             raise ConsistencyException('Error, TimeSlot not initialized?!')
+    
+    def is_physical(self):
+        if self.type == self.PHYSICAL:
+            return True
+        else:
+            return False
         
+    def is_logical(self):
+        if self.type == self.LOGICAL:
+            return True 
+        else:       
+            return False        
 
     def round_dt(self, time_dt, how = None):
         '''Round a datetime according to this TimeSlotSpan. Only simple time intervals are supported in this operation'''

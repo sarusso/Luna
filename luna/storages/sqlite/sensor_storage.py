@@ -1,6 +1,6 @@
 from luna.datatypes.dimensional import PhysicalData, TimePoint, TimeSlot
 from luna.datatypes.dimensional import DataTimeSeries, PhysicalDataTimePoint, PhysicalDataTimeSlot, DataTimePoint, DataPoint, DataTimeSlot
-from luna.storage import Storage
+from luna.storages import Storage
 from luna.spacetime.time import s_from_dt, dt_from_s
 from luna.datatypes.dimensional import StreamingDataTimeSeries, DataTimeStream
 from luna.common.exceptions import InputException, ConsistencyException, StorageException
@@ -452,7 +452,6 @@ class DataTimeSeriesSQLiteStorage(SQLiteStorage):
         stramingDataTimeSeries = StreamingDataTimeSeries(dataTimeStream=dataTimeStream, cached=cached)
 
         return stramingDataTimeSeries
-
 
 
 

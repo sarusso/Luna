@@ -1148,7 +1148,7 @@ class DataTimePoint(TimePoint, DataPoint):
         try:
             return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
         except AttributeError:
-            return '{} @ {}, first data chars: "{}"'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data[0:10])
+            return '{} @ {}, first data chars: "{}"'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), str(self.data)[0:10])
             
 
 
@@ -1785,12 +1785,16 @@ class StreamingDataTimeSeries(DataTimeSeries):
 
 
 
+#---------------------------------------------
+# DataTime Point and Slot Series 
+#---------------------------------------------
 
 
+class DataTimePointSeries(DataTimeSeries):
+    pass
 
-
-
-
+class DataTimeSlotSeries(DataTimeSeries):
+    pass
 
 
 
