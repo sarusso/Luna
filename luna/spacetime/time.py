@@ -625,9 +625,9 @@ class TimeSlotSpan(SlotSpan):
 
 
 
-
-
-
+# To new naming
+class TimeSpan(TimeSlotSpan):
+    pass
 
 
 
