@@ -34,13 +34,65 @@ class PostgresStorage(SQLiteStorage):
         query = "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = '{}' AND table_name = '{}' );".format(self.schema, table) 
         return query
 
+    class Connection(object):
+        
+        # Try-except everything here based on http://initd.org/psycopg/docs/module.html#psycopg2.Error
+        
+        def __init__(self,conn_string, db_pass):
+            
+            # Set conn string
+            self.conn_string = conn_string
+            
+            # Log
+            logger.info("Initializing connection wrapper to: {0}".format(self.conn_string.replace(db_pass, '******')))
+            
+            # Connect
+            self._connect()
+        
+        def _reconnect(self):
+            logger.info('Re-connecting')
+            self._connect()
+        
+        def _connect(self):
+            self.wrapped_conn = psycopg2.connect(self.conn_string)
+            
+        def cursor(self):
+            
+            try:
+                return self.wrapped_conn.cursor()
+            except Exception as e:
+                logger.error('Connection wrapper error on cursor: "{}"'.format(e))
+                conn_closed = self.wrapped_conn.closed
+                if conn_closed:
+                    logger.info('Will reconnect as closed="{}"'.format(conn_closed))
+                    self._reconnect()
+
+        def rollback(self):
+            try:
+                return self.wrapped_conn.rollback()        
+            except Exception as e:
+                logger.error('Connection wrapper error on rollback: "{}"'.format(e))
+                conn_closed = self.wrapped_conn.closed
+                if conn_closed:
+                    logger.info('Will reconnect as closed="{}"'.format(conn_closed))
+                    self._reconnect()
+                
+        def commit(self):
+            try:
+                return self.wrapped_conn.commit()  
+            except Exception as e:
+                logger.error('Connection wrapper error on commit: "{}"'.format(e))
+                conn_closed = self.wrapped_conn.closed
+                if conn_closed:
+                    logger.info('Will reconnect as closed="{}"'.format(conn_closed))
+                    self._reconnect()
+
     def __init__(self, can_initialize=False, host=None, port=None, db_name=None, db_user=None, db_pass=None):
 
         conn_string = "host='{0}' port='{1}' dbname='{2}' user='{3}' password='{4}'".format(host, port, db_name, db_user, db_pass)
-        logger.info("Connecting to database: {0}".format(conn_string.replace(db_pass, '******')))
         
         # Get a connection, if a connect cannot be made an exception will be raised here
-        self.conn = psycopg2.connect(conn_string)
+        self.conn = self.Connection(conn_string, db_pass)
       
         # Named tuples cursor
         #self.cursor = self.conn.cursor(cursor_factory=psycopg2.extras.NamedTupleCursor)

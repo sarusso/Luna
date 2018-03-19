@@ -170,7 +170,21 @@ class SQLiteStorage(Storage):
         # Check if table exists:
         query = "SELECT name FROM {} WHERE type='table' AND name='{}';".format(self.schema, table) 
         return query
-    
+
+    class Connection(object):
+        
+        def __init__(self,db_path):
+            logger.debug('Initializing connection wrapper on "{}"'.format(db_path))
+            self.wrapped_conn = sqlite3.connect(db_path)
+        
+        def cursor(self):
+            return self.wrapped_conn.cursor()
+
+        def rollback(self):
+            return self.wrapped_conn.rollback.cursor()        
+
+        def commit(self):
+            return self.wrapped_conn.commit()  
     
     def __init__(self, db_file=None, in_memory=False, can_initialize=False):
         
@@ -192,8 +206,8 @@ class SQLiteStorage(Storage):
         self.schema = 'sqlite_master'
          
         # Initiliaze connection
-        self.conn = sqlite3.connect(db_path)
-        
+        self.conn = self.Connection(db_path)
+
         # Right to initialize
         self.can_initialize = can_initialize
         
@@ -324,7 +338,10 @@ class SQLiteStorage(Storage):
     #--------------------
     #  PUT
     #--------------------    
-    def put(self, what, id, trustme=False, can_initialize=None):
+    def put(self, what, id=None, trustme=False, can_initialize=None):
+  
+        if not id:
+            raise NotImplementedError('Cannot store without a data id for now')
   
         # Do we know what to add?
         if isinstance(what.data.first, TimePoint):
@@ -396,17 +413,18 @@ class SQLiteStorage(Storage):
             else:
                 raise InputException('{}: Sorry, data type {} is not support by this storage'.format(self.__class__.__name__, type(item)))
         
-        if self.TYPE=='Postgres':
-            try:
-                cur.execute(query)
-            except Exception as e:
-                logger.error('Error when executing query for inserting {}: "{}"'.format(item.__class__.__name__, e))
-                self.conn.rollback()
+            # Store
+            if self.TYPE=='Postgres':
+                try:
+                    cur.execute(query)
+                except Exception as e:
+                    logger.error('Error when executing query for inserting {}: "{}"'.format(item.__class__.__name__, e))
+                    self.conn.rollback()
+                else:
+                    self.conn.commit()  
             else:
+                cur.execute(query)
                 self.conn.commit()  
-        else:
-            cur.execute(query)
-            self.conn.commit()  
 
 
     #--------------------
