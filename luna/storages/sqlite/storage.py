@@ -56,7 +56,7 @@ def sqlvalue(value):
 class SQLiteDataTimeStream(DataTimeStream):
     ''' Data time stream implementation in SQLite'''
      
-    def __init__(self, cur, query, id, labels=None, truncate=None, timeSpan=None, tz=None, TYPE='SQLite'):
+    def __init__(self, cur, query, id, labels=None, truncate=None, timeSpan=None, tz=None, TYPE='SQLite', conn=None):
                
         # Save id
         self.id = id
@@ -71,6 +71,7 @@ class SQLiteDataTimeStream(DataTimeStream):
         self.src_hits  = 0
         self.timeSpan  = timeSpan
         self.TYPE      = TYPE
+        self.conn      = conn
 
         # TODO: Call parent init, use kwargs, pop var names, etc.
         #super(SQLiteDataTimeStream, self).__init__(*args, **kwargs)
@@ -79,7 +80,11 @@ class SQLiteDataTimeStream(DataTimeStream):
     # Iterator
     def __iter__(self):
         if self.TYPE=='Postgres':
-            self.cur.execute(self.query)
+            try:
+                self.cur.execute(self.query)
+            except:
+                self.conn.rollback()
+                raise
         else:
             self.query_cur = self.cur.execute(self.query)
         self.src_hits += 1
@@ -203,12 +208,13 @@ class SQLiteStorage(Storage):
     def check_structure_for_DataTimePoints(self, can_initialize=None):
         '''Check that the structure of the storage exists for a given sensor'''     
         # Check if right table exists:
-        cur = self.conn.cursor()    
-        cur.execute(self.check_table_exists_query('DataTimePoints'))
+        cur = self.conn.cursor()     
         if self.TYPE=='Postgres':
+            cur.execute(self.check_table_exists_query('DataTimePoints'.lower()))
             exists=cur.fetchone()[0]
         else:
-            exists=cur.fetchone()
+            cur.execute(self.check_table_exists_query('DataTimePoints'))
+            exists=cur.fetchone()   
         if not exists:
             if (self.can_initialize and can_initialize==None) or can_initialize:
                 logger.debug('Could not find table for DataTimePoints, creating it...')
@@ -230,7 +236,7 @@ class SQLiteStorage(Storage):
                      "id TEXT NOT NULL,"
                      "data TEXT,"
                      "extra TEXT,"
-                     "PRIMARY KEY (t, validity_start_t, validity_end_t, id));") 
+                     "PRIMARY KEY (t, id));") 
         else:
             query = ("CREATE TABLE DataTimePoints("
                      "t REAL NOT NULL,"
@@ -240,17 +246,24 @@ class SQLiteStorage(Storage):
                      "id TEXT NOT NULL,"
                      "data TEXT,"
                      "extra TEXT,"
-                     "PRIMARY KEY (t, validity_start_t, validity_end_t, id));") 
+                     "PRIMARY KEY (t, id));") 
         logger.debug('Query: %s', query)
-        cur.execute(query) 
-        # Commit 
-        self.conn.commit()               
+        if self.TYPE=='Postgres':
+            try:
+                cur.execute(query)
+            except Exception as e:
+                logger.error('Error when executing query for initializing structure for DataTimePoints: "{}"'.format(e))
+                self.conn.rollback()
+            else:
+                self.conn.commit()  
+        else:
+            cur.execute(query)
+            self.conn.commit()               
 
     def check_structure_for_DataTimeSlots(self, can_initialize=None):
         '''Check that the structure of the storage exists for a given sensor'''
         # Check if right table exists:
-        cur = self.conn.cursor()    
-        
+        cur = self.conn.cursor()     
         if self.TYPE=='Postgres':
             cur.execute(self.check_table_exists_query('DataTimeSlots'.lower()))
             exists=cur.fetchone()[0]
@@ -280,7 +293,7 @@ class SQLiteStorage(Storage):
                      "data TEXT,"
                      "coverage REAL,"
                      "extra TEXT,"
-                     "PRIMARY KEY (start_t, end_t, span, tz, id)"
+                     "PRIMARY KEY (start_t, end_t, id)"
                      ");")
         else:
             query = ("CREATE TABLE DataTimeSlots("
@@ -292,12 +305,20 @@ class SQLiteStorage(Storage):
                      "data TEXT,"
                      "coverage REAL,"
                      "extra TEXT,"
-                     "PRIMARY KEY (start_t, end_t, span, tz, id)"
+                     "PRIMARY KEY (start_t, end_t, id)"
                      ");")            
         logger.debug('Query: %s', query)
-        cur.execute(query) 
-        # Commit 
-        self.conn.commit()             
+        if self.TYPE=='Postgres':
+            try:
+                cur.execute(query)
+            except Exception as e:
+                logger.error('Error when executing query for initializing structure for DataTimeSlots: "{}"'.format(e))
+                self.conn.rollback()
+            else:
+                self.conn.commit()  
+        else:
+            cur.execute(query)
+            self.conn.commit()              
 
 
     #--------------------
@@ -331,14 +352,19 @@ class SQLiteStorage(Storage):
                         raise StorageException('{}: Sorry, the DataTimePoints structure for DataTimePoints is not found and I am not allowed to create it (can_initialize is set to "{}")'.format(self.__class__.__name__, can_initialize))
                     storage_structure_checked = True
                 
-                # Insert
-                logger.debug("Inserting DataTimePoint with t=%s, data=%s, extra=%s", item.t, item.data, None)
+                # Log
+                #logger.debug("Inserting DataTimePoint with t=%s, data=%s, extra=%s", item.t, item.data, None)
+                logger.debug("Inserting %s", item)
+
+                # Set table name
+                table_name='DataTimePoints'
+                if self.TYPE=='Postgres':
+                    table_name=table_name.lower()
                 
                 # Was INSERT OR REPLACE  but it is not compatible with Postgres
-                query = ("INSERT INTO DataTimePoints (t, validity_span, validity_start_t, validity_end_t, id, data, extra) "
-                        "VALUES ({},{},{},{},'{}','{}',{})").format(float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None))
-                logger.debug('Query: %s', query)
-                cur.execute(query)       
+                query = ("INSERT INTO {} (t, validity_span, validity_start_t, validity_end_t, id, data, extra) "
+                        "VALUES ({},{},{},{},'{}','{}',{})").format(table_name, float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None))
+                logger.debug('Query: "%s"', query)
 
             elif isinstance(item, TimeSlot):
                 
@@ -349,30 +375,38 @@ class SQLiteStorage(Storage):
                     storage_structure_checked = True
                 
                 # Log
-                #logger.debug(item)
-                #logger.debug(item.start)
-                #logger.debug(item.end)
-                #logger.debug(item.span)
-                #logger.debug(item.tz)
-                #logger.debug(item.coverage)
-                
+                logger.debug("Inserting %s", item)
+
                 # Handle timezone
                 if item.span.is_logical():
                     tz = item.tz
                 else:
                     tz = 'UTC'
                 
+                # Set table name
+                table_name='DataTimeSlots'
+                if self.TYPE=='Postgres':
+                    table_name=table_name.lower()
+                
                 # Was INSERT OR REPLACE  but it is not compatible with Postgres
-                query = ("INSERT INTO DataTimeSlots (start_t, end_t, span, tz, id, data, coverage, extra) "
-                         "VALUES ({},{},'{}','{}','{}','{}',{},{})").format(float(item.start.t), float(item.end.t), item.span, str(tz), id, json.dumps(item.data), sqlvalue(item.coverage), sqlvalue(None))
+                query = ("INSERT INTO {} (start_t, end_t, span, tz, id, data, coverage, extra) "
+                         "VALUES ({},{},'{}','{}','{}','{}',{},{})").format(table_name, float(item.start.t), float(item.end.t), item.span, str(tz), id, json.dumps(item.data), sqlvalue(item.coverage), sqlvalue(None))
                 logger.debug('Query: %s', query)
-                cur.execute(query)                                  
 
             else:
                 raise InputException('{}: Sorry, data type {} is not support by this storage'.format(self.__class__.__name__, type(item)))
         
-        # TODO: move to commit only this transaction and not everything in self.conn
-        self.conn.commit()
+        if self.TYPE=='Postgres':
+            try:
+                cur.execute(query)
+            except Exception as e:
+                logger.error('Error when executing query for inserting {}: "{}"'.format(item.__class__.__name__, e))
+                self.conn.rollback()
+            else:
+                self.conn.commit()  
+        else:
+            cur.execute(query)
+            self.conn.commit()  
 
 
     #--------------------
@@ -443,12 +477,12 @@ class SQLiteStorage(Storage):
         # Use the iterator of SQLite (streming)
         if self.TYPE=='Postgres':
             if from_t and to_t:
-                query  = 'SELECT * from datatimepoints WHERE id="{}" AND validity_start_t >= {} AND validity_end_t < {} ORDER BY t'.format(id, from_t, to_t)
+                query  = "SELECT * from datatimepoints WHERE id='{}' AND validity_start_t >= {} AND validity_end_t < {} ORDER BY t".format(id, from_t, to_t)
             elif (not from_t and to_t) or (from_t and not to_t):
                 raise InputException('Sorry, please give both from_dt and to_dt or none.')
             else:
                 # Select all data
-                query = 'SELECT * FROM datatimepoints WHERE id="{}" ORDER BY t'.format( id)
+                query = "SELECT * FROM datatimepoints WHERE id='{} ORDER BY t".format( id)
 
         else:
             if from_t and to_t:
@@ -463,7 +497,7 @@ class SQLiteStorage(Storage):
         logger.debug('Query: %s', query)
         
         # Create the DataStream
-        dataTimeStream = SQLiteDataTimeStream(cur=cur, query=query, id=id, tz=tz, TYPE=self.TYPE)
+        dataTimeStream = SQLiteDataTimeStream(cur=cur, query=query, id=id, tz=tz, TYPE=self.TYPE, conn=self.conn)
 
         # Create a StreamingDataTimeSeries with the above DataStream
         stramingDataTimeSeries = StreamingDataTimeSeries(dataTimeStream=dataTimeStream, cached=cached)
