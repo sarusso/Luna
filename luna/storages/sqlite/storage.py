@@ -478,7 +478,9 @@ class SQLiteStorage(Storage):
 
         logger.debug('Getting Slots')
         if last:
-            raise NotImplementedError('Not yet')
+            last_query_part = ' DESC LIMIT {}'.format(last)
+        else:
+            last_query_part = ''
 
         # timeSpan To object
         timeSpan  = TimeSlotSpan(timeSpan)
@@ -510,22 +512,22 @@ class SQLiteStorage(Storage):
         # Prepare the query for the SQLiteDataTimeStream
         if self.TYPE=='Postgres':
             if from_t and to_t:
-                query  = "SELECT * from datatimeslots WHERE id='{}' AND span='{}' AND start_t >= {} and end_t <= {} and tz='{}' ORDER BY start_t".format(id, timeSpan, from_t, to_t, qtz)
+                query  = "SELECT * from datatimeslots WHERE id='{}' AND span='{}' AND start_t >= {} and end_t <= {} and tz='{}' ORDER BY start_t {}".format(id, timeSpan, from_t, to_t, qtz, last_query_part)
             elif (not from_t and to_t) or (from_t and not to_t):
                 raise InputException('Sorry, please give both from_t and t_dt or none.')
             else:
                 # Select all data
-                query = "SELECT * from datatimeslots WHERE id='{}' AND span='{}' and tz='{}' ORDER BY start_t".format(id, timeSpan, qtz)
+                query = "SELECT * from datatimeslots WHERE id='{}' AND span='{}' and tz='{}' ORDER BY start_t {}".format(id, timeSpan, qtz, last_query_part)
         
         else:
             
             if from_t and to_t:
-                query  = 'SELECT * from DataTimeSlots WHERE id="{}" AND span="{}" AND start_t >= {} and end_t <= {} and tz="{}" ORDER BY start_t'.format(id, timeSpan, from_t, to_t, qtz)
+                query  = 'SELECT * from DataTimeSlots WHERE id="{}" AND span="{}" AND start_t >= {} and end_t <= {} and tz="{}" ORDER BY start_t {}'.format(id, timeSpan, from_t, to_t, qtz, last_query_part)
             elif (not from_t and to_t) or (from_t and not to_t):
                 raise InputException('Sorry, please give both from_dt and to_dt or none.')
             else:
                 # Select all data
-                query = 'SELECT * from DataTimeSlots WHERE id="{}" AND span="{}" and tz="{}" ORDER BY start_t'.format(id, timeSpan, qtz)
+                query = 'SELECT * from DataTimeSlots WHERE id="{}" AND span="{}" and tz="{}" ORDER BY start_t {}'.format(id, timeSpan, qtz, last_query_part)
 
         # Log...
         logger.debug('Query: %s', query)
