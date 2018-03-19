@@ -56,38 +56,3 @@ class PostgresStorage(SQLiteStorage):
         # Set Type
         self.TYPE='Postgres'
 
-        #-------------------
-        # Parent Init
-        #-------------------
-        #super(PostgresStorage, self).__init__(**kwargs)
-        if False:
-            def __init__(self, db_file=None, in_memory=False, can_initialize=False):
-            
-                if in_memory:
-                    db_path = ':memory:'
-                    logger.debug('Initializing SQLiteStorage with in memory db')
-                else:
-                    if db_file:
-                        db_path = db_file
-                    else:
-                        db_path = LUNA_HOME + '/Luna_SQLiteStorage.db'
-                    
-                    if not os.path.exists(LUNA_HOME):
-                        os.makedirs(LUNA_HOME)
-                    
-                    logger.debug('Initializing SQLiteStorage with DB path = %s', db_path)
-                    
-                # Initiliaze connection
-                self.conn = sqlite3.connect(db_path)
-                
-                # Right to initialize
-                self.can_initialize = can_initialize
-
-
-
-
-
-
-
-
-
