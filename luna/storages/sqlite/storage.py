@@ -230,7 +230,6 @@ class SQLiteStorage(Storage):
                      "id TEXT NOT NULL,"
                      "data TEXT,"
                      "extra TEXT,"
-                     "hf BOOL,"
                      "PRIMARY KEY (t, validity_start_t, validity_end_t, id));") 
         else:
             query = ("CREATE TABLE DataTimePoints("
@@ -241,7 +240,6 @@ class SQLiteStorage(Storage):
                      "id TEXT NOT NULL,"
                      "data TEXT,"
                      "extra TEXT,"
-                     "hf BOOL,"
                      "PRIMARY KEY (t, validity_start_t, validity_end_t, id));") 
         logger.debug('Query: %s', query)
         cur.execute(query) 
@@ -282,7 +280,6 @@ class SQLiteStorage(Storage):
                      "data TEXT,"
                      "coverage REAL,"
                      "extra TEXT,"
-                     "hf BOOL,"
                      "PRIMARY KEY (start_t, end_t, span, tz, id)"
                      ");")
         else:
@@ -295,7 +292,6 @@ class SQLiteStorage(Storage):
                      "data TEXT,"
                      "coverage REAL,"
                      "extra TEXT,"
-                     "hf BOOL,"
                      "PRIMARY KEY (start_t, end_t, span, tz, id)"
                      ");")            
         logger.debug('Query: %s', query)
@@ -339,8 +335,8 @@ class SQLiteStorage(Storage):
                 logger.debug("Inserting DataTimePoint with t=%s, data=%s, extra=%s", item.t, item.data, None)
                 
                 # Was INSERT OR REPLACE  but it is not compatible with Postgres
-                query = ("INSERT INTO DataTimePoints (t, validity_span, validity_start_t, validity_end_t, id, data, extra, hf) "
-                        "VALUES ({},{},{},{},'{}','{}',{},'{}')").format(float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None), sqlvalue(False))
+                query = ("INSERT INTO DataTimePoints (t, validity_span, validity_start_t, validity_end_t, id, data, extra) "
+                        "VALUES ({},{},{},{},'{}','{}',{})").format(float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None))
                 logger.debug('Query: %s', query)
                 cur.execute(query)       
 
@@ -367,8 +363,8 @@ class SQLiteStorage(Storage):
                     tz = 'UTC'
                 
                 # Was INSERT OR REPLACE  but it is not compatible with Postgres
-                query = ("INSERT INTO DataTimeSlots (start_t, end_t, span, tz, id, data, coverage, extra, hf) "
-                         "VALUES ({},{},'{}','{}','{}','{}',{},{},'{}')").format(float(item.start.t), float(item.end.t), item.span, str(tz), id, json.dumps(item.data), sqlvalue(item.coverage), sqlvalue(None), sqlvalue(False))
+                query = ("INSERT INTO DataTimeSlots (start_t, end_t, span, tz, id, data, coverage, extra) "
+                         "VALUES ({},{},'{}','{}','{}','{}',{},{})").format(float(item.start.t), float(item.end.t), item.span, str(tz), id, json.dumps(item.data), sqlvalue(item.coverage), sqlvalue(None))
                 logger.debug('Query: %s', query)
                 cur.execute(query)                                  
 
