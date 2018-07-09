@@ -785,7 +785,7 @@ class TimePoint(Point):
                     
                     # Check for coherence of time zone
                     try:
-                        if self._tz != kwargs['values'][0].tzinfo:
+                        if str(self._tz) != str(kwargs['values'][0].tzinfo):
                             raise InputException('Error, explicitly set time zone ({}) differs from datetime timezone ({})'.format(self._tz, kwargs['values'][0].tzinfo))
                     except AttributeError:
                         self._tz = kwargs['values'][0].tzinfo
@@ -879,9 +879,9 @@ class TimeSlot(Slot):
     def __repr__(self):
         # The representation works even if only the span is set. TODO: understand if this is what we want..
         if self.start is not None:
-            return '{}: from {} to {} with span of {} and coverage of {}'.format(self.classname, self.start.dt, self.end.dt, self.span, self.coverage)
+            return '{}: from {} to {} with span of {}'.format(self.classname, self.start.dt, self.end.dt, self.span)
         else:
-            return '{}: with {} and coverage of {}'.format(self.classname, self.span, self.coverage)
+            return '{}: with span of {} '.format(self.classname, self.span)
  
     @property
     def tz(self):
@@ -1145,8 +1145,11 @@ class DataTimePoint(TimePoint, DataPoint):
     '''A TimePoint with some data attached, which can be both dimensional (i.e. another point) or undimensional (i.e. an image)'''
 
     def __repr__(self):
-        return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
-
+        try:
+            return '{} @ {}, first data label: {}, with value: {}'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), self.data.labels[0], self.data.values[0])
+        except AttributeError:
+            return '{} @ {}, first data chars: "{}"'.format(self.__class__.__name__, dt_from_s(self.values[0], tz=self.tz), str(self.data)[0:10])
+            
 
 
 # Decided to remove them to allow a more agnostic approach using the region and the span
@@ -1169,8 +1172,14 @@ class DataTimePoint(TimePoint, DataPoint):
 
 class DataTimeSlot(TimeSlot, DataSlot):
     '''A TimeSlot with some data attached, which can be both dimensional (i.e. another point) or andimensional (i.e. an image)'''
-    pass
 
+    def __repr__(self):
+        # The representation works even if only the span is set. TODO: understand if this is what we want..
+        if self.start is not None:
+            return '{}: from {} to {} with span of {} and coverage of {}'.format(self.classname, self.start.dt, self.end.dt, self.span, self.coverage)
+        else:
+            return '{}: with span of {} and coverage of {}'.format(self.classname, self.span, self.coverage)
+ 
 
 #---------------------------------------
 # Specialization: "dimensional" data
@@ -1761,7 +1770,9 @@ class StreamingDataTimeSeries(DataTimeSeries):
         self.__data=value
 
     def force_load(self):
-                
+        
+        logger.warning('Force-loading time series!')
+        
         # Load content levereaging the internal iterator
         self.__data = [item for item in self]
 
@@ -1774,12 +1785,16 @@ class StreamingDataTimeSeries(DataTimeSeries):
 
 
 
+#---------------------------------------------
+# DataTime Point and Slot Series 
+#---------------------------------------------
 
 
+class DataTimePointSeries(DataTimeSeries):
+    pass
 
-
-
-
+class DataTimeSlotSeries(DataTimeSeries):
+    pass
 
 
 

@@ -1,7 +1,7 @@
 import unittest
 from luna.datatypes.dimensional import DataTimePoint
 from luna.common.exceptions import InputException
-from luna.spacetime.time import dt, TimeSlotSpan, correct_dt_dst, timezonize, s_from_dt
+from luna.spacetime.time import dt, TimeSlotSpan, correct_dt_dst, timezonize, s_from_dt, dt_to_str, dt_from_str, change_tz
 import datetime
 
 class test_time(unittest.TestCase):
@@ -79,7 +79,48 @@ class test_time(unittest.TestCase):
         dateTime = dt(3567,8,1,16,46, tzinfo='Europe/Rome')
         self.assertEqual(str(dateTime), '3567-08-01 16:46:00+01:00')
 
- 
+
+    def test_str_conversions(self):
+
+        # Note: there is no way to reconstruct the original timezone from an ISO time format. It has to be set separately.
+
+        # To ISO
+
+        # To ISO on UTC, offset is 0.
+        self.assertEqual(dt_to_str(dt(1986,8,1,16,46, tzinfo='UTC')), '1986-08-01T16:46:00+00:00')
+
+        # To ISO on Europe/Rome, without DST, offset is +1. 
+        self.assertEqual(dt_to_str(dt(1986,12,1,16,46, tzinfo='Europe/Rome')), '1986-12-01T16:46:00+01:00')
+
+        # To ISO On Europe/Rome, with DST, offset is +2.        
+        self.assertEqual(dt_to_str(dt(1986,8,1,16,46, tzinfo='Europe/Rome')), '1986-08-01T16:46:00+02:00')
+
+        # From ISO
+        # 2016-06-29T19:36:29.3453Z
+        # 2016-06-29T19:36:29.3453-0400
+        # 2016-06-29T20:56:35.450686+05:00
+
+        # From ISO without offset -> not allowed
+        with self.assertRaises(InputException):
+            dt_from_str('1986-08-01T16:46:00')
+
+        # From ISO on UTC
+        self.assertEqual(str(dt_from_str('1986-08-01T16:46:00Z')), '1986-08-01 16:46:00+00:00')
+
+        # From ISO on offset +02:00
+
+        self.assertEqual(str(dt_from_str('1986-08-01T16:46:00.362752+02:00')), '1986-08-01 16:46:00.362752+02:00')
+        
+        # From ISO on offset +02:00 (with microseconds)
+        self.assertEqual(str(dt_from_str('1986-08-01T16:46:00+02:00')), '1986-08-01 16:46:00+02:00')
+
+        # From ISO on offset -07:00
+        self.assertEqual(str(dt_from_str('1986-08-01T16:46:00-07:00')), '1986-08-01 16:46:00-07:00')
+
+
+    def test_change_tz(self):
+        self.assertEqual(str(change_tz(dt_from_str('1986-08-01T16:46:00.362752+02:00'), 'UTC')), '1986-08-01 14:46:00.362752+00:00')
+
     def test_TimeSlotSpan(self):
         
         # TODO: I had to comment out this test, find out why..

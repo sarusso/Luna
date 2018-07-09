@@ -7,7 +7,7 @@ If you are interested in contributing please drop me a line at stefano.russo@gma
 Luna
 ====
 
-Luna is an high-level, highly customisable data analytics framework. Its roots are based on the physics and math which governs the reality around us, ensuring a coherent description of almost any kind of data. The result is an extremely flexible framework that can suit a huge variety of use cases.
+Luna is an high-level, highly customisable data storage and aggregation framework. Its roots are based on the physics and math which governs the reality around us, ensuring a coherent description of almost any kind of data. The result is an extremely flexible framework that can suit a huge variety of use cases.
 
 
 Just to give an idea, one of the most basic data structures of Luna is the Space, a representation of a mathematical n-dimensional space; while one of the most evolved ones is the PhysicalDataTimeSeries, a time series specifically designed to hold physical quantities which is very useful for the sensors data in the Internet of Things world. 
@@ -31,7 +31,6 @@ basic Continuos Integration check. [Check status on Travis](https://travis-ci.or
 # Quick Start
 
 ```python
-
 #------------------------------------
 # Logging
 #------------------------------------
@@ -86,8 +85,8 @@ print('DEMO: Generated dataTimeSeries: {}'.format(dataTimeSeries))
 #------------------------------------
 # Initializa a (temporary) storage
 #------------------------------------
-from luna.storage.sqlite import sqlite
-dataTimeSeriesSQLiteStorage = sqlite.DataTimeSeriesSQLiteStorage(in_memory=True, can_initialize=True)
+from luna.storages.sqlite import sensor_storage as storage
+dataTimeSeriesSQLiteStorage = storage.DataTimeSeriesSQLiteStorage(in_memory=True, can_initialize=True)
 
 #------------------------------------
 # Store RAW data

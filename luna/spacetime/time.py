@@ -2,6 +2,10 @@ import datetime
 import calendar
 from luna.common.exceptions import InputException, ConsistencyException
 from luna.datatypes.auxiliary import SlotSpan
+try:
+    from dateutil.tz import tzoffset
+except ImportError:
+    tzoffset = None
 import pytz
 
 
@@ -49,12 +53,13 @@ def dt(*args, **kwargs):
         tzinfo = kwargs.pop('tz')
     else:
         tzinfo  = kwargs.pop('tzinfo', None)
-    trustme = kwargs.pop('trustme', None)
+        
+    offset_s  = kwargs.pop('offset_s', None)   
+    trustme   = kwargs.pop('trustme', None)
     
     if kwargs:
         raise InputException('Unhandled arg: "{}".'.format(kwargs))
         
-
     if (tzinfo is None):
         # Force UTC if None
         timezone = timezonize('UTC')
@@ -62,7 +67,14 @@ def dt(*args, **kwargs):
     else:
         timezone = timezonize(tzinfo)
     
-    time_dt = timezone.localize(datetime.datetime(*args))
+    if offset_s:
+        # Special case for the offset
+        if not tzoffset:
+            raise Exception('For ISO date with offset please install dateutil')
+        time_dt = datetime.datetime(*args, tzinfo=tzoffset(None, offset_s))
+    else:
+        # Standard  timezone
+        time_dt = timezone.localize(datetime.datetime(*args))
 
     # Check consistency    
     if not trustme and timezone != pytz.UTC:
@@ -134,6 +146,10 @@ def timezonize(timezone):
     return timezone
 
 
+def change_tz(dt, tz):
+    return dt.astimezone(timezonize(tz))
+              
+
 #--------------------------
 #    Conversions
 #--------------------------
@@ -168,6 +184,67 @@ def s_from_dt(dt):
     microseconds_part = (dt.microsecond/1000000.0) if dt.microsecond else 0
     return  ( calendar.timegm(dt.utctimetuple()) + microseconds_part)
 
+
+def dt_from_str(string, timezone=None):
+
+    # Supported formats on UTC
+    # 1) YYYY-MM-DDThh:mm:ssZ
+    # 2) YYYY-MM-DDThh:mm:ss.{u}Z
+
+    # Supported formats with offset    
+    # 3) YYYY-MM-DDThh:mm:ss+ZZ:ZZ
+    # 4) YYYY-MM-DDThh:mm:ss.{u}+ZZ:ZZ
+    
+
+
+    # Split and parse standard part
+    date, time = string.split('T')
+    
+    if time.endswith('Z'):
+        # UTC
+        offset_s = 0
+        time = time[:-1]
+        
+    elif ('+') in time:
+        # Positive offset
+        time, offset = time.split('+')
+        # Set time and extract positive offset
+        offset_s = (int(offset.split(':')[0])*60 + int(offset.split(':')[1]) )* 60   
+        
+    elif ('-') in time:
+        # Negative offset
+        time, offset = time.split('-')
+        # Set time and extract negative offset
+        offset_s = -1 * (int(offset.split(':')[0])*60 + int(offset.split(':')[1])) * 60      
+    
+    else:
+        raise InputException('Format error')
+    
+    # Handle time
+    hour, minute, second = time.split(':')
+    
+    # Now parse date (easy)
+    year, month, day = date.split('-') 
+
+    # Convert everything to int
+    year    = int(year)
+    month   = int(month)
+    day     = int(day)
+    hour    = int(hour)
+    minute  = int(minute)
+    if '.' in second:
+        usecond = int(second.split('.')[1])
+        second  = int(second.split('.')[0])
+    else:
+        second  = int(second)
+        usecond = 0
+    
+    return dt(year, month, day, hour, minute, second, usecond, offset_s=offset_s)
+
+
+def dt_to_str(dt):
+    '''Return the ISO representation of the datetime as argument'''
+    return dt.isoformat()
 
 
 #----------------------------
@@ -352,7 +429,18 @@ class TimeSlotSpan(SlotSpan):
             return self.PHYSICAL
         else:
             raise ConsistencyException('Error, TimeSlot not initialized?!')
+    
+    def is_physical(self):
+        if self.type == self.PHYSICAL:
+            return True
+        else:
+            return False
         
+    def is_logical(self):
+        if self.type == self.LOGICAL:
+            return True 
+        else:       
+            return False        
 
     def round_dt(self, time_dt, how = None):
         '''Round a datetime according to this TimeSlotSpan. Only simple time intervals are supported in this operation'''
@@ -537,9 +625,9 @@ class TimeSlotSpan(SlotSpan):
 
 
 
-
-
-
+# To new naming
+class TimeSpan(TimeSlotSpan):
+    pass
 
 
 

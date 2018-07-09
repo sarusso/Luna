@@ -1,9 +1,11 @@
+
 from luna.datatypes.dimensional import TimePoint, TimeSlot
 from luna.datatypes.dimensional import DataTimePoint, DataTimeSlot, PhysicalData, DataTimeSeries, DataPoint, DataSlot
 from luna.datatypes.auxiliary import PhysicalQuantity
 from luna.common.exceptions import ConsistencyException, ConfigurationException, InputException, NoDataException
 from luna.aggregators.utilities import compute_1D_coverage
 from luna.spacetime.time import s_from_dt
+from luna.datatypes.dimensional import Slot
 
 #--------------------------
 #    Logger
@@ -296,6 +298,9 @@ class DataTimeSeriesAggregatorProcess(object):
         if not start_dt or not end_dt:
             raise NotImplementedError('Empty start/end not yet implemented') 
 
+        if start_dt >= end_dt:
+                raise InputException('Sorry, start is >= end! (start={}, end={})'.format(start_dt,end_dt))
+            
         # Handle the rounded case
         if rounded:
             start_dt = self.timeSlotSpan.round_dt(start_dt) if start_dt else None
@@ -315,7 +320,7 @@ class DataTimeSeriesAggregatorProcess(object):
         # Set some support varibales
         slot_start_dt      = None
         slot_end_dt        = None
-        prev_dataTimePoint      = None
+        prev_dataTimePoint      = None # TODO: rename in "item" to be able processing also slots 
         filtered_dataTimeSeries = DataTimeSeries()
         process_ended      = False
 
@@ -330,6 +335,10 @@ class DataTimeSeriesAggregatorProcess(object):
         count = 0
         
         for dataTimePoint in dataTimeSeries:
+
+            # If slot not yet supported
+            if isinstance(dataTimePoint, Slot):
+                raise NotImplementedError('Aggregating slots in slots is not yet supported')
 
             # Increase counter
             count +=1
@@ -370,7 +379,7 @@ class DataTimeSeriesAggregatorProcess(object):
 
             if dataTimePoint.dt > slot_end_dt:
                 # If the current slot is outdated:
-                              
+                         
                 # 1) Add this last point to the dataTimeSeries:
                 filtered_dataTimeSeries.append(dataTimePoint)
                  
@@ -400,7 +409,7 @@ class DataTimeSeriesAggregatorProcess(object):
                         callback_counter +=1
                         if callback_trigger and callback_counter > callback_trigger:
                             if callback:
-                                callback(self, caller=self)
+                                callback(self)
                                 callback_counter = 1
                     
                     # Create a new slot
