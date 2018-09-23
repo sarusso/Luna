@@ -476,7 +476,9 @@ class SQLiteStorage(Storage):
 
         logger.debug('Getting Points')
         if last:
-            raise NotImplementedError('Not yet')
+            last_query_part = ' DESC LIMIT {}'.format(last)
+        else:
+            last_query_part = ''
 
         # Handle timezone
         if tz is None:
@@ -495,21 +497,21 @@ class SQLiteStorage(Storage):
         # Use the iterator of SQLite (streming)
         if self.TYPE=='Postgres':
             if from_t and to_t:
-                query  = "SELECT * from datatimepoints WHERE id='{}' AND validity_start_t >= {} AND validity_end_t < {} ORDER BY t".format(id, from_t, to_t)
+                query  = "SELECT * from datatimepoints WHERE id='{}' AND validity_start_t >= {} AND validity_end_t < {} ORDER BY t {}".format(id, from_t, to_t, last_query_part)
             elif (not from_t and to_t) or (from_t and not to_t):
                 raise InputException('Sorry, please give both from_dt and to_dt or none.')
             else:
                 # Select all data
-                query = "SELECT * FROM datatimepoints WHERE id='{} ORDER BY t".format( id)
+                query = "SELECT * FROM datatimepoints WHERE id='{}' ORDER BY t {}".format(id, last_query_part)
 
         else:
             if from_t and to_t:
-                query  = 'SELECT * from DataTimePoints WHERE id="{}" AND validity_start_t >= {} AND validity_end_t < {} ORDER BY t'.format(id, from_t, to_t)
+                query  = 'SELECT * from DataTimePoints WHERE id="{}" AND validity_start_t >= {} AND validity_end_t < {} ORDER BY t {}'.format(id, from_t, to_t, last_query_part)
             elif (not from_t and to_t) or (from_t and not to_t):
                 raise InputException('Sorry, please give both from_dt and to_dt or none.')
             else:
                 # Select all data
-                query = 'SELECT * FROM DataTimePoints WHERE id="{}" ORDER BY t'.format( id)
+                query = 'SELECT * FROM DataTimePoints WHERE id="{}" ORDER BY t {}'.format(id, last_query_part)
 
         # Log...
         logger.debug('Query: %s', query)
