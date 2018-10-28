@@ -195,7 +195,8 @@ def dt_from_str(string, timezone=None):
     # 3) YYYY-MM-DDThh:mm:ss+ZZ:ZZ
     # 4) YYYY-MM-DDThh:mm:ss.{u}+ZZ:ZZ
     
-
+    # Also:
+    # 5) YYYY-MM-DDThh:mm:ss (without the trailing Z, and assume it on UTC)
 
     # Split and parse standard part
     date, time = string.split('T')
@@ -218,7 +219,9 @@ def dt_from_str(string, timezone=None):
         offset_s = -1 * (int(offset.split(':')[0])*60 + int(offset.split(':')[1])) * 60      
     
     else:
-        raise InputException('Format error')
+        # Assume UTC
+        offset_s = 0
+        #raise InputException('Format error')
     
     # Handle time
     hour, minute, second = time.split(':')

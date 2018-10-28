@@ -100,15 +100,17 @@ class test_time(unittest.TestCase):
         # 2016-06-29T19:36:29.3453-0400
         # 2016-06-29T20:56:35.450686+05:00
 
-        # From ISO without offset -> not allowed
-        with self.assertRaises(InputException):
-            dt_from_str('1986-08-01T16:46:00')
-
+        # From ISO without offset is not allowed -> Not anymore, see test "From ISO assuming UTC"]
+        #with self.assertRaises(InputException):
+        #    dt_from_str('1986-08-01T16:46:00')
+       
         # From ISO on UTC
         self.assertEqual(str(dt_from_str('1986-08-01T16:46:00Z')), '1986-08-01 16:46:00+00:00')
 
-        # From ISO on offset +02:00
+        # From ISO assuming UTC
+        self.assertEqual(str(dt_from_str('1986-08-01T16:46:00')), '1986-08-01 16:46:00+00:00')
 
+        # From ISO on offset +02:00
         self.assertEqual(str(dt_from_str('1986-08-01T16:46:00.362752+02:00')), '1986-08-01 16:46:00.362752+02:00')
         
         # From ISO on offset +02:00 (with microseconds)
