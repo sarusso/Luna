@@ -1040,7 +1040,7 @@ class DataPoint(Point):
             
             # Check for presence of data
             if self.data is None:
-                raise InputException('{}: Sorry, you need to specify some date, i got None'.format(self.classname)) 
+                raise InputException('{}: Sorry, you need to specify some data, I got None'.format(self.classname)) 
 
         # Call parent Init
         super(DataPoint, self).__init__(*argv, **kwargs)
