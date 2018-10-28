@@ -377,10 +377,14 @@ class SQLiteStorage(Storage):
                 table_name='DataTimePoints'
                 if self.TYPE=='Postgres':
                     table_name=table_name.lower()
-                
-                # Was INSERT OR REPLACE  but it is not compatible with Postgres
-                query = ("INSERT INTO {} (t, validity_span, validity_start_t, validity_end_t, id, data, extra) "
-                        "VALUES ({},{},{},{},'{}','{}',{})").format(table_name, float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None))
+
+                    query = ("INSERT INTO {} (t, validity_span, validity_start_t, validity_end_t, id, data, extra) "
+                            "VALUES ({},{},{},{},'{}','{}',{}) ON CONFLICT (t,id) DO UPDATE SET data = '{}'").format(table_name, float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None), json.dumps(item.data))
+  
+                else:
+                    query = ("INSERT OR REPLACE INTO {} (t, validity_span, validity_start_t, validity_end_t, id, data, extra) "
+                            "VALUES ({},{},{},{},'{}','{}',{})").format(table_name, float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None))
+
                 logger.debug('Query: "%s"', query)
 
             elif isinstance(item, TimeSlot):
@@ -404,10 +408,12 @@ class SQLiteStorage(Storage):
                 table_name='DataTimeSlots'
                 if self.TYPE=='Postgres':
                     table_name=table_name.lower()
-                
-                # Was INSERT OR REPLACE  but it is not compatible with Postgres
-                query = ("INSERT INTO {} (start_t, end_t, span, tz, id, data, coverage, extra) "
-                         "VALUES ({},{},'{}','{}','{}','{}',{},{})").format(table_name, float(item.start.t), float(item.end.t), item.span, str(tz), id, json.dumps(item.data), sqlvalue(item.coverage), sqlvalue(None))
+                    query = ("INSERT INTO {} (start_t, end_t, span, tz, id, data, coverage, extra) "
+                             "VALUES ({},{},'{}','{}','{}','{}',{},{}) ON CONFLICT (start_t,end_t,id) DO UPDATE SET data = '{}'").format(table_name, float(item.start.t), float(item.end.t), item.span, str(tz), id, json.dumps(item.data), sqlvalue(item.coverage), sqlvalue(None), json.dumps(item.data))
+                 
+                else:
+                    query = ("INSERT OR REPLACE INTO {} (start_t, end_t, span, tz, id, data, coverage, extra) "
+                             "VALUES ({},{},'{}','{}','{}','{}',{},{})").format(table_name, float(item.start.t), float(item.end.t), item.span, str(tz), id, json.dumps(item.data), sqlvalue(item.coverage), sqlvalue(None))
                 logger.debug('Query: %s', query)
 
             else:
