@@ -358,7 +358,28 @@ class SQLiteStorage(Storage):
         
         # Initialize cursor:
         cur = self.conn.cursor()
-        for item in what:
+  
+        if len(what) > 1000:
+            bulk = True
+            query = None
+        else:
+            bulk=False
+
+        for i, item in enumerate(what):
+            #logger.debug(i)
+            if bulk:
+                if i % 1000 == 0:
+                    if query:
+                        #logger.debug(query[0:-1])
+                        cur.execute(query[0:-1])
+                        self.conn.commit()
+                    query = None
+                # Last part
+                elif i == len(what) - 1:
+                    #logger.debug('Last part')
+                    #logger.debug(query[0:-1])
+                    cur.execute(query[0:-1])
+                    self.conn.commit()
             
             # With which kind of data are we dealing with?
             if isinstance(item, TimePoint):
@@ -377,10 +398,15 @@ class SQLiteStorage(Storage):
                 table_name='DataTimePoints'
                 if self.TYPE=='Postgres':
                     table_name=table_name.lower()
-
-                    query = ("INSERT INTO {} (t, validity_span, validity_start_t, validity_end_t, id, data, extra) "
+                    
+                    if bulk:
+                        if not query:
+                            query = "INSERT INTO {} (t, validity_span, validity_start_t, validity_end_t, id, data, extra) VALUES ".format(table_name)
+                        query += "({},{},{},{},'{}','{}',{}),".format(float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None), json.dumps(item.data))
+                    else:
+                        query = ("INSERT INTO {} (t, validity_span, validity_start_t, validity_end_t, id, data, extra) "
                             "VALUES ({},{},{},{},'{}','{}',{}) ON CONFLICT (t,id) DO UPDATE SET data = '{}'").format(table_name, float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None), json.dumps(item.data))
-  
+
                 else:
                     query = ("INSERT OR REPLACE INTO {} (t, validity_span, validity_start_t, validity_end_t, id, data, extra) "
                             "VALUES ({},{},{},{},'{}','{}',{})").format(table_name, float(item.t), sqlvalue(None), float(item.t), float(item.t), id, json.dumps(item.data), sqlvalue(None))
@@ -420,17 +446,25 @@ class SQLiteStorage(Storage):
                 raise InputException('{}: Sorry, data type {} is not support by this storage'.format(self.__class__.__name__, type(item)))
         
             # Store
-            if self.TYPE=='Postgres':
-                try:
-                    cur.execute(query)
-                except Exception as e:
-                    logger.error('Error when executing query for inserting {}: "{}"'.format(item.__class__.__name__, e))
-                    self.conn.rollback()
+            if False:
+                if self.TYPE=='Postgres':
+                    try:
+                        cur.execute(query)
+                    except Exception as e:
+                        logger.error('Error when executing query for inserting {}: "{}"'.format(item.__class__.__name__, e))
+                        self.conn.rollback()
+                    else:
+                        self.conn.commit()  
                 else:
-                    self.conn.commit()  
+                    cur.execute(query)
+                    self.conn.commit()
             else:
-                cur.execute(query)
-                self.conn.commit()  
+                if not bulk:
+                    cur.execute(query)
+
+        # Commit everything
+        if not bulk:
+            self.conn.commit()
 
 
     #--------------------
