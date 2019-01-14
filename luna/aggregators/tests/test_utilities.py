@@ -5,6 +5,15 @@ from luna.aggregators.utilities import compute_1D_coverage
 from luna.common.exceptions import InputException
 from luna.spacetime.time import dt, TimeSlotSpan, correct_dt_dst, timezonize, s_from_dt
 import datetime
+import logging
+import os
+
+#------------------------------------
+# Logging
+#------------------------------------
+log_level = os.environ.get('LUNA_LOG_LEVEL', 'CRITICAL')
+logging.basicConfig(level=log_level)
+logger = logging.getLogger("luna")
 
 class test_compute_1D_coverage(unittest.TestCase):
 
@@ -146,6 +155,59 @@ class test_compute_1D_coverage(unittest.TestCase):
         # 20 minutes plus other 30 secs (previous) validity for the 10th point over 30 minutes
         self.assertAlmostEqual(Slot_coverage, (2.0/3.0))
 
+
+
+    def test_compute_1D_coverage_advanced(self):
+        
+        # TODO: Move above with other time series
+        from luna.sensors import PhysicalDataTimeSensor
+        class SimpleSensor15m(PhysicalDataTimeSensor):
+            type_ID = 1
+            Points_data_labels = ['temp_C']
+            Points_validity_region = TimeSlot(span='15m')
+            Slots_data_labels =  ['temp_C_AVG', 'temp_C_MIN', 'temp_C_MAX']
+            timezone = 'Europe/Rome'  
+        
+        sensor = SimpleSensor15m('084EB18E44FFA/7-MB-1')
+        from_dt = dt(2019,10,1,1,0,0, tzinfo=sensor.timezone)
+        to_dt   = dt(2019,10,1,6,0,0, tzinfo=sensor.timezone)
+
+        dataTimeSeries = DataTimeSeries()
+        slider_dt = from_dt
+        count = 0
+        while slider_dt < to_dt:
+            
+            if count not in [1, 6, 7, 8, 9, 10]:
+                data = PhysicalData( labels = ['temp_C'], values = [25.5] ) 
+                physicalDataTimePoint = PhysicalDataTimePoint(dt   = slider_dt,
+                                                              data = data,
+                                                              validity_region = sensor.Points_validity_region)
+                dataTimeSeries.append(physicalDataTimePoint)
+            
+            slider_dt = slider_dt + TimeSlotSpan('15m')
+            count += 1
+
+
+        # Missing half slot before slot re-start
+        start_Point = TimePoint(dt=dt(2019,10,1,3,30,0, tzinfo=sensor.timezone))
+        end_Point   = TimePoint(dt=dt(2019,10,1,3,45,0, tzinfo=sensor.timezone))
+        Slot_coverage = compute_1D_coverage(dataSeries  = dataTimeSeries,
+                                            start_Point = start_Point,
+                                            end_Point   = end_Point)
+        
+        
+        self.assertAlmostEqual(Slot_coverage, (0.5))
+
+        #print('------------------------------')
+        #print(dataTimeSeries)
+        #for point in dataTimeSeries:
+        #    pass
+        #    #print(point, point.validity_region)
+        #print('------------------------------')
+        #print(Slot_coverage)
+        #print('------------------------------')
+
+        
         
     def tearDown(self):
         pass

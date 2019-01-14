@@ -47,9 +47,16 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
     missing_coverage = None
     validity_region_presence = None
     empty_dataSeries = True
+    next_processed = False
 
+    logger.debug('Called compute_1D_coverage from {} to {}'.format(start_Point, end_Point))
+
+    #---------------------------
+    #  START cycle over points
+    #---------------------------
     for this_dataPoint in dataSeries:
         
+        # Hard debug
         #logger.debug('HARD DEBUG %s %s %s', this_dataPoint.Point_part, this_dataPoint.validity_region.start, this_dataPoint.validity_region.end)
         
         # If no start point has been set, just use the first one in the data
@@ -57,10 +64,13 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
         #    start_Point = dataSeries.Point_part
         # TODO: add support also for dynamically setting the end_Point to allow empty start_Point/end_Point input        
         
+        #-----------------
+        #  BEFORE START
+        #-----------------
         # Are we before the start_Point? 
         if this_dataPoint.Point_part < start_Point:
             
-            # Just set the previous Point valid unit
+            # Just set the previous Point valid until
             try:  
                 prev_dataPoint_valid_until = this_dataPoint.validity_region.end
                 if validity_region_presence is False:
@@ -71,15 +81,36 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
                     raise InputException('Got DataPoint without a validity region but the previous one(s) did not have it') 
                 prev_dataPoint_valid_until = this_dataPoint.Point_part
                 validity_region_presence = False
-            # Then continue
+            
+            # If prev point too far, skip it
+            if prev_dataPoint_valid_until <= start_Point:
+                prev_dataPoint_valid_until = None
+
             continue
 
-        # Are we after the end_Point? 
-        elif this_dataPoint.Point_part > end_Point:
-            # TODO: implement proper logic, see the AVG operation.
-            continue
 
-        # Otherwise, we are in the middle (or after the end)?
+        #-----------------
+        #  AFTER END
+        #-----------------
+        # Are we after the end_Point? In this case, we can treat it as if we are in the middle-
+        elif this_dataPoint.Point_part >= end_Point:
+
+            if not next_processed: 
+                this_dataPoint_valid_from  = this_dataPoint.validity_region.start
+                this_dataPoint_valid_until = this_dataPoint.validity_region.end # Not really necessary, but for consistency and to skip an if later
+                next_processed = True
+                
+                # If "next" point too far, skip it:
+                if this_dataPoint_valid_from > end_Point:
+                    continue
+            else:
+                continue
+
+
+        #-----------------
+        #  IN THE MIDDLE
+        #-----------------
+        # Otherwise, we are in the middle?
         else:
 
             # Set this Point's validity
@@ -95,7 +126,7 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
                 this_dataPoint_valid_from  = this_dataPoint.Point_part
                 this_dataPoint_valid_until = this_dataPoint.Point_part
                 validity_region_presence = False
-                
+
         # Okay, now we have all the values we need:
         # 1) prev_dataPoint_valid_until
         # 2) this_dataPoint_valid_from
@@ -107,9 +138,10 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
         # Compute coverage
         # TODO: and idea could also to initialize Spans and sum them
         if prev_dataPoint_valid_until is None:
-            value = this_dataPoint_valid_from.values[0] - start_Point.values[0]
+            value = this_dataPoint_valid_from.t - start_Point.t
+            
         else:
-            value = this_dataPoint_valid_from.values[0] - prev_dataPoint_valid_until.values[0]
+            value = this_dataPoint_valid_from.t - prev_dataPoint_valid_until.t
             
         # If for whatever reason the validity regions overlap we don't want to end up in
         # invalidating the coverage calculation by summing negative numbers
@@ -122,6 +154,9 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
         # Update previous dataPoint Validity:
         prev_dataPoint_valid_until = this_dataPoint_valid_until
         
+    #---------------------------
+    #   END cycle over points
+    #---------------------------
 
     # Compute the coverage until the end point
     if prev_dataPoint_valid_until is not None:
@@ -153,11 +188,6 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
     # Return
     logger.debug('compute_1D_coverage: Returning %s (%s percent)', coverage, coverage*100.0)
     return coverage
-
-
-
-
-
 
 
 
