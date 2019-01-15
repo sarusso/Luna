@@ -425,9 +425,29 @@ class DataTimeSeriesAggregatorProcess(object):
 
                     logger.debug('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
                     
-                    # If last slot mark process as ended:
-                    if dataTimePoint.dt >= end_dt:
-                        process_ended = True
+                # If last slot mark process as completed (and aggregate last slot if necessary)
+                if dataTimePoint.dt >= end_dt:
+
+                    # Edge case where we would otherwise miss the last slot
+                    if dataTimePoint.dt == end_dt:
+                        # Aggregate
+                        aggregator_results = self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
+                                                                       start_dt           = slot_start_dt,
+                                                                       end_dt             = slot_end_dt,
+                                                                       timeSlotSpan       = self.timeSlotSpan,
+                                                                       raise_if_no_data   = self.raise_if_no_data)
+                        # .. and append results
+                        self.results_dataTimeSeries.append(aggregator_results)
+
+                        # Also, handle the callback
+                        callback_counter +=1
+                        if callback_trigger and callback_counter > callback_trigger:
+                            if callback:
+                                callback(self)
+                                callback_counter = 1
+
+
+                    process_ended = True
                     
        
        
