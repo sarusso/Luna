@@ -541,8 +541,9 @@ class Region(Space):
         
         if not self.floating:
             raise Exception('Cannot anchor an already anchored region.')
-             
-        logger.debug('Anchoring to %s', anchor)
+         
+        # Hard debug    
+        #logger.debug('Anchoring to %s', anchor)
         
         # Check before anchoring
         if not isinstance(anchor, Point):
