@@ -83,8 +83,9 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
                 validity_region_presence = False
             
             # If prev point too far, skip it
-            if prev_dataPoint_valid_until <= start_Point:
-                prev_dataPoint_valid_until = None
+            if validity_region_presence:
+                if prev_dataPoint_valid_until <= start_Point:
+                    prev_dataPoint_valid_until = None
 
             continue
 
