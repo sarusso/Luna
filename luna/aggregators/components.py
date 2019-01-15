@@ -87,6 +87,9 @@ class DataTimePointsAggregator(Aggregator):
                                                       coverage = 0.0) 
                 
                 logger.debug('Done aggregating, slot: %s', dataTimeSlot)
+                logger.debug('')
+                logger.debug('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
+                logger.debug('')
                 return dataTimeSlot
 
         #--------------------------------------------
@@ -229,6 +232,9 @@ class DataTimePointsAggregator(Aggregator):
 
         # Return results
         logger.debug('Done aggregating, slot: %s', dataTimeSlot)
+        logger.debug('')
+        logger.debug('@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@')
+        logger.debug('')
         return dataTimeSlot
     
 
@@ -334,6 +340,11 @@ class DataTimeSeriesAggregatorProcess(object):
         callback_counter = 1
         count = 0
         
+        logger.debug(' Input datTimeSeries:')
+        for item in dataTimeSeries:
+            logger.debug('  {}'.format(item))
+        
+        
         for dataTimePoint in dataTimeSeries:
 
             # If slot not yet supported
@@ -380,8 +391,7 @@ class DataTimeSeriesAggregatorProcess(object):
             if dataTimePoint.dt > slot_end_dt:
                 # If the current slot is outdated:
                          
-                # 1) Add this last point to the dataTimeSeries:
-                filtered_dataTimeSeries.append(dataTimePoint)
+                
                  
                 #2) keep spinning new slots until the current data point falls in one of them.
                 
@@ -390,12 +400,26 @@ class DataTimeSeriesAggregatorProcess(object):
                 # TODO: leave or remove the above if for code readability?
                 
                 while slot_end_dt < dataTimePoint.dt:
+                    logger.debug(' ---> Now evaluating: {}'.format(dataTimePoint.dt))
+
+                    
+                    # 1) Add this last point to the dataTimeSeries, unless we already have a "next"
+                    
+                    try:
+                        logger.debug('last: {}'.format(filtered_dataTimeSeries.byindex(-1)))
+                        if not filtered_dataTimeSeries.byindex(-1).dt >= slot_end_dt:
+                            filtered_dataTimeSeries.append(dataTimePoint)
+                    except IndexError:
+                        filtered_dataTimeSeries.append(dataTimePoint)
+                    
                     
                     # If we are in the pre-first slot, just silently spin a new slot:
                     if slot_start_dt is not None:
                                 
                         logger.debug('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
-
+                        logger.debug(' Filtered datTimeSeries:')
+                        for item in filtered_dataTimeSeries:
+                            logger.debug('  {}'.format(item))
                         # Aggregate
                         aggregator_results = self.aggregator.aggregate(dataTimeSeries     = filtered_dataTimeSeries,
                                                                        start_dt           = slot_start_dt,
@@ -411,7 +435,7 @@ class DataTimeSeriesAggregatorProcess(object):
                             if callback:
                                 callback(self)
                                 callback_counter = 1
-                    
+
                     # Create a new slot
                     slot_start_dt = slot_end_dt
                     slot_end_dt   = slot_start_dt + self.timeSlotSpan
@@ -424,6 +448,14 @@ class DataTimeSeriesAggregatorProcess(object):
                         filtered_dataTimeSeries.append(prev_dataTimePoint)
 
                     logger.debug('SlotStream: Spinned a new slot (start={}, end={})'.format(slot_start_dt, slot_end_dt))
+                    logger.debug(' ---> Now re-evaluating: {}'.format(dataTimePoint.dt))
+                    try:
+                        filtered_dataTimeSeries.append(dataTimePoint)
+                    except InputException:
+                        logger.debug('Not adding as already present')
+                    else:
+                        logger.debug('Added')
+                    
                     
                 # If last slot mark process as completed (and aggregate last slot if necessary)
                 if dataTimePoint.dt >= end_dt:
@@ -456,7 +488,12 @@ class DataTimeSeriesAggregatorProcess(object):
             #----------------------------
         
             # Append this point
-            filtered_dataTimeSeries.append(dataTimePoint)
+            try:
+                filtered_dataTimeSeries.append(dataTimePoint)
+            except InputException:
+                logger.debug('Not adding as already present')
+            else:
+                logger.debug('Added')
             
             # ..and save as previous point
             prev_dataTimePoint =  dataTimePoint           

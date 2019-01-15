@@ -1570,6 +1570,9 @@ class DataTimeSeries(TimeSeries):
             else:
                 raise Exception("Internal error when looking for the given timestamp (unconsistent condition)")
             count += 1
+
+    def byindex(self, index):
+        return self._data[index]
             
     #------------------
     # ALPHA code

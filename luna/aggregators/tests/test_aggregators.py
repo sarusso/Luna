@@ -14,9 +14,9 @@ import os
 #------------------------------------
 # Logging
 #------------------------------------
-
-#logging.basicConfig(level=logging.INFO)
-#logger = logging.getLogger("luna")
+log_level = os.environ.get('LUNA_LOG_LEVEL', 'CRITICAL')
+logging.basicConfig(level=log_level)
+logger = logging.getLogger("luna")
 
 
 
@@ -30,6 +30,13 @@ class SimpleSensor(PhysicalDataTimeSensor):
     type_ID = 1
     Points_data_labels = ['temp_C']
     Points_validity_region = TimeSlot(span='1m')
+    Slots_data_labels =  ['temp_C_AVG', 'temp_C_MIN', 'temp_C_MAX']
+    timezone = 'Europe/Rome'
+
+class SimpleSensor15m(PhysicalDataTimeSensor):
+    type_ID = 1
+    Points_data_labels = ['temp_C']
+    Points_validity_region = TimeSlot(span='15m')
     Slots_data_labels =  ['temp_C_AVG', 'temp_C_MIN', 'temp_C_MAX']
     timezone = 'Europe/Rome'
 
@@ -204,7 +211,9 @@ class test_aggregators(unittest.TestCase):
         # Quick check results using string representations
         i = 0
         for slot in aggregated_dataTimeSeries:
-
+            print('------------')
+            print slot
+            print('------------')
             if i == 0:
                 self.assertEqual(str(slot), '''PhysicalDataTimeSlot: from 2016-03-25 10:00:00+01:00 to 2016-03-25 10:15:00+01:00 with span of 15m''')
                 self.assertEqual(slot.data.content, {'temp_C_MAX': 25.5, 'temp_C_AVG': 25.5, 'temp_C_MIN': 25.5})
@@ -233,6 +242,11 @@ class test_aggregators(unittest.TestCase):
         # Load dataset
         dataTimeSeriesSQLiteStorage = sqlite.DataTimeSeriesSQLiteStorage(in_memory=False, can_initialize=True, db_file=datasets_path + 'dataset1.sqlite')
         out_streamingDataTimeSeries = dataTimeSeriesSQLiteStorage.get(sensor=sensor)
+        #for item in out_streamingDataTimeSeries:
+        #    print(item, item.validity_region.start, item.validity_region.end)
+
+        #import sys
+        #sys.exit(0)
 
         dataTimeSeriesAggregatorProcess = DataTimeSeriesAggregatorProcess(timeSlotSpan      = TimeSlotSpan('15m'),
                                                                           Sensor            = sensor,
@@ -267,6 +281,100 @@ class test_aggregators(unittest.TestCase):
                 
         if i != 2:
             raise Exception('Test failed')
+
+
+
+
+
+
+
+
+
+    def test_Complex_Aggregations(self):   
+
+        sensor = SimpleSensor15m('084EB18E44FFA/7-MB-1')
+        data_from_dt = dt(2019,10,26,0,0,0, tzinfo=sensor.timezone)
+        data_to_dt   = dt(2019,10,26,1,30,0, tzinfo=sensor.timezone)
+
+        aggregate_from_dt = dt(2019,10,26,0,0,0, tzinfo=sensor.timezone)
+        aggregate_to_dt   = dt(2019,10,26,1,0,0, tzinfo=sensor.timezone)
+
+        dataTimeSeries = DataTimeSeries()
+        slider_dt = data_from_dt
+        count = 0
+        while slider_dt < data_to_dt:
+            #if count not in [1, 6, 7, 8, 9, 10]:
+            #if count not in [0, 1, 6, 7, 8, 9, 10]:
+            print(slider_dt)
+            if count not in [0, 1, 6, 7]:
+                data = PhysicalData( labels = ['temp_C', 'volume_V'], values = [10.0*(count+1), 60] ) 
+                physicalDataTimePoint = PhysicalDataTimePoint(dt   = slider_dt,
+                                                              data = data,
+                                                              validity_region = sensor.Points_validity_region)
+                dataTimeSeries.append(physicalDataTimePoint)
+            
+            slider_dt = slider_dt + TimeSlotSpan('15m')
+            count += 1
+            
+        dataTimeSeriesAggregatorProcess = DataTimeSeriesAggregatorProcess(timeSlotSpan      = TimeSlotSpan('15m'),
+                                                                          Sensor            = sensor,
+                                                                          data_to_aggregate = PhysicalDataTimePoint)
+
+
+        # Aggregate
+        dataTimeSeriesAggregatorProcess.start(dataTimeSeries = dataTimeSeries,
+                                              start_dt       = aggregate_from_dt,
+                                              end_dt         = aggregate_to_dt,
+                                              rounded        = True,
+                                              threaded       = False)
+        
+        # Get results
+        aggregated_dataTimeSeries = dataTimeSeriesAggregatorProcess.get_results(until=None)
+
+
+        print('-----------  Original  -------------------')
+        print(dataTimeSeries)
+        for point in dataTimeSeries:
+            #print(point, point.data['temp_C'], point.validity_region)
+            print('0{}:{}, {} '.format(point.dt.hour,point.dt.minute, point.data['temp_C']))
+        print('----------- Aggregated -------------------')
+        print(aggregated_dataTimeSeries)
+        for slot in aggregated_dataTimeSeries:
+            #print(slot, slot.coverage)
+            print (slot.start, slot.end, slot.data['temp_C_AVG'], slot.coverage)
+        print('------------------------------')
+
+
+#         # Quick check results using string representations
+#         i = 0
+#         for slot in aggregated_dataTimeSeries:
+# 
+#             if i == 0:
+#                 self.assertEqual(str(slot), '''PhysicalDataTimeSlot: from 2016-03-25 10:00:00+01:00 to 2016-03-25 10:15:00+01:00 with span of 15m''')
+#                 self.assertEqual(slot.data.content, {'temp_C_MAX': 25.5, 'temp_C_AVG': 25.5, 'temp_C_MIN': 25.5})
+#                 self.assertEqual(slot.coverage, 1.0)
+#             elif i == 1:
+#                 self.assertEqual(str(slot), '''PhysicalDataTimeSlot: from 2016-03-25 10:15:00+01:00 to 2016-03-25 10:30:00+01:00 with span of 15m''')
+#                 self.assertEqual(slot.data.content, {'temp_C_MAX': 25.5, 'temp_C_AVG': 25.5, 'temp_C_MIN': 25.5})
+#                 self.assertEqual(slot.coverage, 1.0)
+#             else:
+#                 raise Exception('Test failed')
+#             i +=1
+#                 
+#         if i != 3:
+#             raise Exception('Test failed')
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
