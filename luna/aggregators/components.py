@@ -452,9 +452,11 @@ class DataTimeSeriesAggregatorProcess(object):
                     try:
                         filtered_dataTimeSeries.append(dataTimePoint)
                     except InputException:
-                        logger.debug('Not adding as already present')
+                        pass
+                        #logger.debug('Not adding as already present')
                     else:
-                        logger.debug('Added')
+                        pass
+                        #logger.debug('Added')
                     
                     
                 # If last slot mark process as completed (and aggregate last slot if necessary)
@@ -491,9 +493,11 @@ class DataTimeSeriesAggregatorProcess(object):
             try:
                 filtered_dataTimeSeries.append(dataTimePoint)
             except InputException:
-                logger.debug('Not adding as already present')
+                pass
+                #logger.debug('Not adding as already present')
             else:
-                logger.debug('Added')
+                pass
+                #logger.debug('Added')
             
             # ..and save as previous point
             prev_dataTimePoint =  dataTimePoint           

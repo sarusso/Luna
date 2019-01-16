@@ -224,225 +224,241 @@ def clean_dataTimePointSeries(dataTimePointSeries, start_timePoint=None, end_tim
     
     if validity_region_presence:
         logger.debug('Cleaning and reconstructing missing values with validity regions')
+
+
+        # Support vars
+        got_prev = False
+        got_next = False
+        Point_data_class = None
+        operation_label  = None
+        
         for i, this_dataTimePoint in enumerate(dataTimePointSeries):
+            
             logger.debug(' this: {}'.format(this_dataTimePoint))
+
             # Check validity region consistency
             if has_validity_region(this_dataTimePoint) and validity_region_presence is False:
                 raise InputException('Got DataPoint with a validity region but the previous one(s) did not have it') 
             if not has_validity_region(this_dataTimePoint) and validity_region_presence is True:
                 raise InputException('Got DataPoint without a validity region but the previous one(s) did not have it') 
 
-
-            #==============================
-            # First iteration?
-            #==============================
+            # Set Point data class if not set
+            if not Point_data_class:
+                Point_data_class = this_dataTimePoint.data.__class__
             
-            if not past_dataTimePoint:
+            # Set operation label if not set
+            if not operation_label:
+                operation_label = this_dataTimePoint.data.lazy_filter_label
+                           
+#             #==============================
+#             # First iteration?
+#             #==============================
+#             
+#             if not past_dataTimePoint:
+#                 
+#                 # Set Point_data_class
+#                 Point_data_class = this_dataTimePoint.data.__class__
+# 
+#                 if this_dataTimePoint.Point_part > start_timePoint:
+#                     
+#                     if this_dataTimePoint.validity_region.start > start_timePoint:
+#                         
+#                     
+#                         # This is the case where we don't have a prev. Can happen only once.
+#                         logger.debug('  ADDING leftfileld missing (prev) POINT from {} to {}, value={}'.format(start_timePoint, this_dataTimePoint.validity_region.start, this_dataTimePoint.data.operation_value))
+#     
+#                         if this_dataTimePoint.validity_region.start < start_timePoint:
+#                             missing_validity_region_start = start_timePoint
+#     
+#                         dataTimeSlot = DataTimeSlot(start = start_timePoint,
+#                                                             end   = this_dataTimePoint.validity_region.start,
+#                                                             data  = Point_data_class(labels=[this_dataTimePoint.data.lazy_filter_label], values=[this_dataTimePoint.data.operation_value]))
+#                         
+#                         # In this case, add it straight away.
+#                         dataTimePointSeries_cleaned.append(dataTimeSlot)
+#                 
+# 
+#                 # Set past point and continue.
+#                 past_dataTimePoint = this_dataTimePoint
+# 
+#                 # Continue to next iteration
+#                 continue
+
+            #==============================
+            # Are we dealing with a Prev?
+            #==============================
+            if this_dataTimePoint.Point_part < start_timePoint:
                 
-                # Set Point_class
-                Point_class = this_dataTimePoint.data.__class__
-
-                if this_dataTimePoint.Point_part > start_timePoint:
-                    # This is the case where we don't have a prev. Can happen only once.
-                    logger.debug('  ADDING leftfileld missing (prev) POINT from {} to {}, value={}'.format(start_timePoint, this_dataTimePoint.validity_region.start, this_dataTimePoint.data.operation_value))
-
-                    missing_dataTimeSlot = DataTimeSlot(start = start_timePoint,
-                                                        end   = this_dataTimePoint.validity_region.start,
-                                                        data  = Point_class(labels=[this_dataTimePoint.data.lazy_filter_label], values=[this_dataTimePoint.data.operation_value]))
-                    
-                    # In tis case, add it straight away.
-                    dataTimePointSeries_cleaned.append(missing_dataTimeSlot)
-                    
-                # Set past point and continue. DO not set the past slot, this step is una tantum.
-                past_dataTimePoint = this_dataTimePoint
-                
-            else:
-                
-                #==============================
-                # Are we dealing with a Prev?
-                #==============================
-                if past_dataTimePoint.Point_part < start_timePoint:
-                    logger.debug('Dealing with a prev')
-                    
-                    # Missing data?
-                    if (past_dataTimePoint.validity_region.end != this_dataTimePoint.validity_region.start):
-                        
-                        # Validity region of the Prev not entering this Slot (left included)
-                        if past_dataTimePoint.validity_region.end < start_timePoint:
-                            missing_validity_region_start = start_timePoint
-                        
-                        # Validity region of the Prev entering this Slot (left included)
-                        else:
-                            missing_validity_region_start = past_dataTimePoint.validity_region.end
-                        
-                        
-                        #===========================================
-                        # Special case where we have already a Next
-                        #===========================================
-                        
-                        if this_dataTimePoint.Point_part >= end_timePoint: 
-                            # TODO: Remove non computing data if coverage=None to make it work
-                            # TODO: consider also possible overlaps of prev and next validty regions
-                        
-                            # Validity region of the Next not entering this Slot (right excluded)
-                            if this_dataTimePoint.validity_region.start >= end_timePoint:
-                                missing_validity_region_end = end_timePoint
-                            
-                            # Validity region of theNext entering this Slot (right excluded)
-                            else:
-                                missing_validity_region_end  = this_dataTimePoint.validity_region.start
-                        
-                        else:
-                            missing_validity_region_end  = this_dataTimePoint.validity_region.end
-
-                        reconstructed_value = (past_dataTimePoint.data.operation_value + this_dataTimePoint.data.operation_value)/2.0
-                        logger.debug('  ADDING missing (post-prev) POINT from {} to {}, value={}'.format(missing_validity_region_start, missing_validity_region_end, reconstructed_value))
-                        missing_dataTimeSlot = DataTimeSlot(start = missing_validity_region_start,
-                                                            end   = missing_validity_region_end,
-                                                            data  = Point_class(labels=[this_dataTimePoint.data.lazy_filter_label], values=[this_dataTimePoint.data.operation_value]))
-                        
-                        # Set past
-                        past_dataTimePoint = this_dataTimePoint
-                        past_dataTimeSlot  = missing_dataTimeSlot
-
-                #==============================
-                # Are we dealing with a Next?
-                #==============================
-                elif this_dataTimePoint.Point_part >= end_timePoint:
-                    
-                    # Check that we are in a real Next situation
-                    if this_dataTimePoint < end_timePoint:
-                        raise ConsistencyException('I ended up in a slot with no visibility of a Next')
-                        # Basically, you can never be in a "rightfill" situation as time do have a privileged direction, and it is forward
-                        # In other words, we need to wait for the future to happen before taking any decision, therefore there will be always a "Next"
-                                            
-                    logger.debug('Dealing with a next')
-
-                    # Missing data?
-                    if (past_dataTimeSlot.end != this_dataTimePoint.validity_region.start):
-
-                        # Validity region of the Next not entering this Slot (right excluded)
-                        if this_dataTimePoint.validity_region.start >= end_timePoint:
-                            missing_validity_region_end = end_timePoint
-                        
-                        # Validity region of the Next entering this Slot (right excluded)
-                        else:
-                            missing_validity_region_end = this_dataTimePoint.validity_region.start
-
-                        missing_validity_region_end  = this_dataTimePoint.validity_region.start
-                        
-                        reconstructed_value = (past_dataTimeSlot.data[0] + this_dataTimePoint.data.operation_value)/2.0
-
-                        logger.debug('  ADDING missing (pre-next) POINT from {} to {}, value={}'.format(past_dataTimeSlot.end, this_dataTimePoint.validity_region.start, reconstructed_value))
-
-                        missing_dataTimeSlot = DataTimeSlot(start = past_dataTimePoint.validity_region.end,
-                                                            end   = this_dataTimePoint.validity_region.start,
-                                                            data  = Point_class(labels=[this_dataTimePoint.data.lazy_filter_label], values=[this_dataTimePoint.data.operation_value]))
-
-                        dataTimePointSeries_cleaned.append(missing_dataTimeSlot)
-                        # Ok, completed (just break, do not set past)
-                        break
-
+                # Sanity check
+                if got_prev:
+                    raise ConsistencyException('Already got a prev')
                 else:
-                    #============================
-                    #  All points in the middle
-                    #============================
-
-                    logger.debug('Not dealing with a particular case')
-                    this_validity_region_start = this_dataTimePoint.validity_region.start
-                    this_validity_region_end = this_dataTimePoint.validity_region.end
-                    
-                    logger.debug('  past_validity_region_start: {}'.format(past_dataTimeSlot.start))
-                    logger.debug('  past_validity_region_end: {}'.format(past_dataTimeSlot.start))
-                    logger.debug('  this_validity_region_start: {}'.format(this_validity_region_start))
-                    logger.debug('  this_validity_region_end:   {}'.format(this_validity_region_end))
-                    
-                    #_____________________
-                    # Shrink for start-end
-                    
-                    # Do we have to shrink down because of a start_timePoint?
-                    if this_validity_region_start < start_timePoint:
-                        this_validity_region_start = start_timePoint
-                        
-                    # Do we have to shrink down because of a end_timePoint?
-                    if this_validity_region_end > end_timePoint:
-                        this_validity_region_end = end_timePoint                      
-                    
-                    
-                    #______________
-                    # Missing data?
-                    
-                    if (past_dataTimeSlot.end < this_validity_region_start):
-                        
-                        # Here we can append the past slot
-                        dataTimePointSeries_cleaned.append(past_dataTimeSlot)
-                        
-                        newvalue = (past_dataTimeSlot.data[0]+ this_dataTimePoint.data.operation_value)/2.0
-                        logger.debug('  ADDING missing (middle) POINT from {} to {}, value={}'.format(past_dataTimeSlot.end, this_validity_region_start, newvalue))
-                        dataTimeSlot = DataTimeSlot(start = past_dataTimeSlot.end,
-                                                    end   = this_validity_region_start,
-                                                    data  = Point_class(labels=[this_dataTimePoint.data.lazy_filter_label], values=[this_dataTimePoint.data.operation_value]))
-                        
-
-                        # Set new past slot
-                        past_dataTimeSlot = dataTimeSlot
-
-
-                    #_________
-                    # Overlap?
-                    
-                    elif (past_dataTimeSlot.end > this_dataTimePoint.validity_region.start):
-                        #raise Exception('Overlap! ({} <-> {})'.format(past_dataTimePoint.validity_region.end, this_dataTimePoint.validity_region.start))
-                        
-                        joint_t = past_dataTimeSlot.end.t + ((past_dataTimeSlot.end.t - this_dataTimePoint.validity_region.start.t)/2)
-                        joint_timePoint = TimePoint(t=joint_t, tz=past_dataTimeSlot.end.tz)
-                        
-                        logger.debug('  changing past_dataTimeSlot end to {}'.format(joint_timePoint))
-                        # Create new past_dataTimeSlot to replace the one with the wrong (overlapped) end
-                        past_dataTimeSlot = DataTimeSlot(start = past_dataTimeSlot.start,
-                                                         end   = joint_timePoint,
-                                                         data  = past_dataTimeSlot.data)
-                        
-                        # Append the new past slot (with the new end to avoid the overlap)
-                        dataTimePointSeries_cleaned.append(past_dataTimeSlot)
-                        
-                        # Set new this_validity_region_start
-                        this_validity_region_start = joint_timePoint
-
-
-                    #______________________________
-                    # Nothing relevant (on borders)
-                    else:
-                        # Just append the past slot
-                        dataTimePointSeries_cleaned.append(past_dataTimeSlot)
-                        
-                    #__________________________
-                    # handle this_dataTimePoint
-                    
-                    # Ok, here we have the slots until now (past and newly generated to cover missing data) ready.
-
-                    logger.debug('  this_validity_region_start (recomputed): {}'.format(this_validity_region_start))
-                    logger.debug('  this_validity_region_end   (recomputed): {}'.format(this_validity_region_end))
-
+                    got_prev = True
                 
-                    logger.debug('  ADDING this POINT from {} to {}, value={}'.format(this_validity_region_start, this_validity_region_end, this_dataTimePoint.data.operation_value))
-                    dataTimeSlot = DataTimeSlot(start = this_validity_region_start,
-                                                end   = this_validity_region_end,
-                                                data  = Point_class(labels=[this_dataTimePoint.data.lazy_filter_label], values=[this_dataTimePoint.data.operation_value]))
-                    past_dataTimeSlot = dataTimeSlot
-                    dataTimePointSeries_cleaned.append(dataTimeSlot)
-            
-                    # Log
-                    #logger.debug('Point #{} of {}'.format(i, len(dataTimePointSeries)))
+                logger.debug('Dealing with a prev ({})'.format(this_dataTimePoint.Point_part ))
+                
+                # Of this Prev, do we have a part in this slot?
+                if this_dataTimePoint.validity_region.end < start_timePoint:
+                    
+                    # No, case #2)
+                    # Reconstruct a slot from the beginning of the slot to the start of the next point
+                    
+                    # Get the next Point to get the boundaries
+                    next_dataTimePoint = dataTimePointSeries.byindex(i+1)
+                    logger.debug(next_dataTimePoint)
 
-                    # Set past
-                    past_dataTimePoint = this_dataTimePoint
+                    # Set vars
+                    reconstructed_slot_start = start_timePoint
+                    reconstructed_slot_end   = next_dataTimePoint.validity_region.start
+                    reconstructed_slot_value = (this_dataTimePoint.data.operation_value + this_dataTimePoint.data.operation_value)/2.0
+                    logger.debug('  RECONSTRUCTING (post-prev) slot from {} to {}, value={}'.format(reconstructed_slot_start, reconstructed_slot_end, reconstructed_slot_value))
+                    
+                    # Build the Slot
+                    reconstructed_dataTimeSlot = DataTimeSlot(start = reconstructed_slot_start,
+                                                              end   = reconstructed_slot_end,
+                                                              data  = Point_data_class(labels=[operation_label], values=[reconstructed_slot_value]))
+                                        
+                    dataTimePointSeries_cleaned.append(reconstructed_dataTimeSlot)
+                    
+                else:
+                    
+                    # Yes, case #1)
+                    # Limit its slot so that it starts from the start_timePoint (TODO: handle overlaps)
+                    
+                    # Get the next Point to get the boundaries
+                    next_dataTimePoint = dataTimePointSeries.byindex(i+1)
+                    logger.debug(next_dataTimePoint)
+
+                    # Set vars
+                    adjusted_slot_start = start_timePoint
+                    adjusted_slot_end   = this_dataTimePoint.validity_region.start
+                    adjusted_slot_value = this_dataTimePoint.data.operation_value
+                    logger.debug('  ADJUSTING (prev) slot from {} to {}, value={}'.format(adjusted_slot_start, adjusted_slot_end, adjusted_slot_value))
+                    
+                    # Build the Slot
+                    adjusted_dataTimeSlot = DataTimeSlot(start = adjusted_slot_start,
+                                                         end   = adjusted_slot_end,
+                                                         data  = Point_data_class(labels=[operation_label], values=[adjusted_slot_value]))
+                                        
+                    dataTimePointSeries_cleaned.append(adjusted_dataTimeSlot)
+
+
+            #==============================
+            # Are we dealing with a Next?
+            #==============================
+            elif this_dataTimePoint.Point_part >= end_timePoint:
+                
+                # Check that we are in a real Next situation
+                if this_dataTimePoint < end_timePoint:
+                    raise ConsistencyException('I ended up in a slot with no visibility of a Next')
+                    # Basically, you can never be in a "rightfill" situation as time do have a privileged direction, and it is forward
+                    # In other words, we need to wait for the future to happen before taking any decision, therefore there will be always a "Next"
+                                        
+                logger.debug('Dealing with a next')
+                
+                # TODO: everything
+                break
+
+            
+            
+            else:
+                #============================
+                #  All points in the middle
+                #============================
+
+                logger.debug('Not dealing with a particular case')
+#                 this_validity_region_start = this_dataTimePoint.validity_region.start
+#                 this_validity_region_end   = this_dataTimePoint.validity_region.end
+#                 past_validity_region_start = past_dataTimePoint.validity_region.start
+#                 past_validity_region_end   = past_dataTimePoint.validity_region.end                    
+# 
+#                 
+#                 #_____________________
+#                 # Shrink for start-end
+#                 
+#                 # Do we have to shrink down because of a start_timePoint?
+#                 if this_validity_region_start < start_timePoint:
+#                     this_validity_region_start = start_timePoint
+#                     
+#                 # Do we have to shrink down because of a end_timePoint?
+#                 if this_validity_region_end > end_timePoint:
+#                     this_validity_region_end = end_timePoint                      
+# 
+# 
+#                 logger.debug('  past_validity_region_start: {}'.format(past_validity_region_start))
+#                 logger.debug('  past_validity_region_end:   {}'.format(past_validity_region_end))
+#                 logger.debug('  this_validity_region_start: {}'.format(this_validity_region_start))
+#                 logger.debug('  this_validity_region_end:   {}'.format(this_validity_region_end))                    
+#                 
+#                 #______________
+#                 # Missing data?
+#                 
+#                 if (past_validity_region_end < this_validity_region_start):
+#                     
+# 
+#                     reconstructed_value = (past_dataTimePoint.operation_value + this_dataTimePoint.data.operation_value)/2.0
+#                     logger.debug('  ADDING missing (middle) Slot from {} to {}, value={}'.format(past_validity_region_end, this_validity_region_start, reconstructed_value))
+#                     dataTimeSlot = DataTimeSlot(start = past_validity_region_end,
+#                                                 end   = this_validity_region_start,
+#                                                 data  = Point_data_class(labels=[this_dataTimePoint.data.lazy_filter_label], values=[this_dataTimePoint.data.operation_value]))
+#                     
+#                     dataTimePointSeries_cleaned.append(dataTimeSlot)
+# 
+# 
+#                 #_________
+#                 # Overlap?
+#                 
+#                 elif (past_validity_region_end > this_dataTimePoint.validity_region.start):
+#                     raise Exception('Overlap! ({} <-> {})'.format(past_validity_region_end, this_validity_region_start))
+#                     
+#                     #joint_t = past_dataTimeSlot.end.t - abs((past_dataTimeSlot.end.t - this_dataTimePoint.validity_region.start.t)/2)
+#                     #joint_timePoint = TimePoint(t=joint_t, tz=past_dataTimeSlot.end.tz)
+#                     
+#                     #logger.debug('  changing past_dataTimeSlot end to {}'.format(joint_timePoint))
+#                     # Create new past_dataTimeSlot to replace the one with the wrong (overlapped) end
+#                     #past_dataTimeSlot = DataTimeSlot(start = past_dataTimeSlot.start,
+#                     #                                 end   = joint_timePoint,
+#                     #                                 data  = past_dataTimeSlot.data)
+#                     
+#                     # Append the new past slot (with the new end to avoid the overlap)
+#                     #dataTimePointSeries_cleaned.append(past_dataTimeSlot)
+#                     
+#                     # Set new this_validity_region_start
+#                     #this_validity_region_start = joint_timePoint
+# 
+# 
+#                 #______________________________
+#                 # Nothing relevant (on borders)
+#                 else:
+#                     pass
+#                 
+#                 #__________________________
+#                 # handle this_dataTimePoint
+#                 
+#                 # Ok, here we have the slots until now (past and newly generated to cover missing data) ready.
+# 
+#                 logger.debug('  this_validity_region_start (recomputed): {}'.format(this_validity_region_start))
+#                 logger.debug('  this_validity_region_end   (recomputed): {}'.format(this_validity_region_end))
+# 
+#             
+#                 logger.debug('  ADDING this Slot from {} to {}, value={}'.format(this_validity_region_start, this_validity_region_end, this_dataTimePoint.data.operation_value))
+#                 dataTimeSlot = DataTimeSlot(start = this_validity_region_start,
+#                                             end   = this_validity_region_end,
+#                                             data  = Point_data_class(labels=[this_dataTimePoint.data.lazy_filter_label], values=[this_dataTimePoint.data.operation_value]))
+#                 
+#                 dataTimePointSeries_cleaned.append(dataTimeSlot)
+#         
+#                 # Log
+#                 #logger.debug('Point #{} of {}'.format(i, len(dataTimePointSeries)))
+# 
+#                 # Set past
+#                 past_dataTimePoint = this_dataTimePoint
                         
-            return dataTimePointSeries_cleaned
-        
-        else:
-            raise NotImplementedError('Cleaning time series with points without validity region not yet supported')
- 
+        return dataTimePointSeries_cleaned
+    
+    else:
+        raise NotImplementedError('Cleaning time series with points without validity region not yet supported')
+    
 
 
 
@@ -478,7 +494,7 @@ class AVG(Operation):
         logger.debug('===========================================================================================================')
         logger.debug(' Called on items:')
         for item in dataSeries:
-            logger.debug('  {}'.format(item))
+            logger.debug('  {} - {}'.format(item, item.data))
         logger.debug('===========================================================================================================')
         # Sanity checks
         if not trustme:
@@ -504,10 +520,10 @@ class AVG(Operation):
         
         dataTimePointSeries_cleaned = clean_dataTimePointSeries(dataTimePointSeries, start_timePoint, end_timePoint)
         
-        #logger.debug('--------------- CLEANED ----------------------------')
-        #for item in dataTimePointSeries_cleaned:
-        #    logger.debug(item)
-        #logger.debug('----------------------------------------------------')
+        logger.debug('--------------- CLEANED ----------------------------')
+        for dataTimeSlot in dataTimePointSeries_cleaned:
+            logger.debug(dataTimeSlot.start, dataTimeSlot.end, dataTimeSlot.span)
+        logger.debug('----------------------------------------------------')
                 
 
         average = 5

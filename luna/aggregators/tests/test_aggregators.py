@@ -290,7 +290,7 @@ class test_aggregators(unittest.TestCase):
 
 
 
-    def test_Complex_Aggregations(self):   
+    def test_Complex_Aggregations1(self):   
 
         sensor = SimpleSensor15m('084EB18E44FFA/7-MB-1')
         data_from_dt = dt(2019,10,26,0,0,0, tzinfo=sensor.timezone)
@@ -369,7 +369,58 @@ class test_aggregators(unittest.TestCase):
 
 
 
+    def test_Complex_Aggregations2(self):   
 
+        sensor = SimpleSensor15m('084EB18E44FFA/7-MB-1')
+        data_from_dt = dt(2019,10,26,0,30,0, tzinfo=sensor.timezone)
+        data_to_dt   = dt(2019,10,26,2,30,0, tzinfo=sensor.timezone)
+
+        aggregate_from_dt = dt(2019,10,26,1,0,0, tzinfo=sensor.timezone)
+        aggregate_to_dt   = dt(2019,10,26,2,0,0, tzinfo=sensor.timezone)
+
+        dataTimeSeries = DataTimeSeries()
+        slider_dt = data_from_dt
+        count = 0
+        while slider_dt < data_to_dt:
+
+            print(slider_dt)
+            if count not in [ 1, 2, 7]:
+                data = PhysicalData( labels = ['temp_C', 'volume_V'], values = [10.0*(count+1), 60] ) 
+                physicalDataTimePoint = PhysicalDataTimePoint(dt   = slider_dt,
+                                                              data = data,
+                                                              validity_region = sensor.Points_validity_region)
+                dataTimeSeries.append(physicalDataTimePoint)
+            
+            slider_dt = slider_dt + TimeSlotSpan('15m')
+            count += 1
+            
+        dataTimeSeriesAggregatorProcess = DataTimeSeriesAggregatorProcess(timeSlotSpan      = TimeSlotSpan('15m'),
+                                                                          Sensor            = sensor,
+                                                                          data_to_aggregate = PhysicalDataTimePoint)
+
+
+        # Aggregate
+        dataTimeSeriesAggregatorProcess.start(dataTimeSeries = dataTimeSeries,
+                                              start_dt       = aggregate_from_dt,
+                                              end_dt         = aggregate_to_dt,
+                                              rounded        = True,
+                                              threaded       = False)
+        
+        # Get results
+        aggregated_dataTimeSeries = dataTimeSeriesAggregatorProcess.get_results(until=None)
+
+
+        print('-----------  Original  -------------------')
+        print(dataTimeSeries)
+        for point in dataTimeSeries:
+            #print(point, point.data['temp_C'], point.validity_region)
+            print('0{}:{}, {} '.format(point.dt.hour,point.dt.minute, point.data['temp_C']))
+        print('----------- Aggregated -------------------')
+        print(aggregated_dataTimeSeries)
+        for slot in aggregated_dataTimeSeries:
+            #print(slot, slot.coverage)
+            print (slot.start, slot.end, slot.data['temp_C_AVG'], slot.coverage)
+        print('------------------------------')
 
 
 
