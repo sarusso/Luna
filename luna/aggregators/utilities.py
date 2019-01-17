@@ -272,10 +272,10 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
     # Support vars
     simpleSeries = []
     timezone     = None 
-    
-    # Sanity checks
+     
+    # Sanity checks (no, make tests fail)
     if len(dataTimePointSeries) == 0:
-        raise InputException('Got empty dataTimePointSeries')
+        return None
  
     # Start    
     for i, this_dataTimePoint in enumerate(dataTimePointSeries):

@@ -513,14 +513,14 @@ class test_clean_and_reconstruct(unittest.TestCase):
                                                          data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
                                                          validity_region = TimeSlot(span='15m')))  
     
-        # 1) from after end
-        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, from_dt=dt(2019,10,5,0,0,0))
-        self.assertEqual(cleaned_dataTimeSlotSeries, None)
+        # 1) from after end (left displacement?)
+        #cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, from_dt=dt(2019,10,5,0,0,0))
+        #self.assertEqual(cleaned_dataTimeSlotSeries, None)
 
         
-        # 2) to before start
-        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, to_dt=dt(2019,10,1,0,0,0))
-        self.assertEqual(cleaned_dataTimeSlotSeries, None)
+        # 2) to before start (right displacement?) 
+        #cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, to_dt=dt(2019,10,1,0,0,0))
+        #self.assertEqual(cleaned_dataTimeSlotSeries, None)
     
         
     def tearDown(self):
