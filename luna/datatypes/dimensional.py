@@ -1364,7 +1364,7 @@ class DataTimeSeries(TimeSeries):
         # TODO: use the data_type
         if self._data:
             if isinstance(self._data[0], TimeSlot):
-                return '{} of {} {} ({}), first TimeSlot start: {}, last TimeSlot start: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].span, self._data[0].start.dt, self._data[-1].start.dt, self.tz)                
+                return '{} of {} {}, first TimeSlot start: {}, last TimeSlot end: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].start.dt, self._data[-1].end.dt, self.tz)                
             else:    
                 return '{} of {} {}, start: {}, end: {}, timezone: {}'.format(self.__class__.__name__, len(self._data), self._data[0].__class__.__name__, self._data[0].dt, self._data[-1].dt, self.tz)
         else:

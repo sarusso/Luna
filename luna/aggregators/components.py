@@ -71,23 +71,48 @@ class DataTimePointsAggregator(Aggregator):
                                             start_Point = start_Point,
                                             end_Point   = end_Point)
 
-        # If no coverage return list of None in None data is allowed, otherwise raise.
-        if Slot_coverage == 0.0:
-            if raise_if_no_data:
-                raise NoDataException('This slot has coverage of 0.0, cannot compute any data! (start={}, end={})'.format(start_Point, end_Point))
-            else:
-                Slot_physicalData = self.Sensor.Points_type.data_type(labels  = Slot_data_labels_to_generate,
-                                                                      values  = [None for _ in Slot_data_labels_to_generate], # Force "trustme" to allow None in data
-                                                                      trustme = True)
-                
-                dataTimeSlot = self.Sensor.Slots_type(start    = start_Point,
-                                                      end      = end_Point,
-                                                      data     = Slot_physicalData,
-                                                      span     = timeSlotSpan,
-                                                      coverage = 0.0) 
-                
-                logger.debug('Done aggregating, slot: %s', dataTimeSlot)
-                return dataTimeSlot
+        old_approach = False
+        
+        if old_approach:
+            # If no coverage return list of None in None data is allowed, otherwise raise.
+            if Slot_coverage == 0.0:
+                if raise_if_no_data:
+                    raise NoDataException('This slot has coverage of 0.0, cannot compute any data! (start={}, end={})'.format(start_Point, end_Point))
+                else:
+                    Slot_physicalData = self.Sensor.Points_type.data_type(labels  = Slot_data_labels_to_generate,
+                                                                          values  = [None for _ in Slot_data_labels_to_generate], # Force "trustme" to allow None in data
+                                                                          trustme = True)
+                    
+                    dataTimeSlot = self.Sensor.Slots_type(start    = start_Point,
+                                                          end      = end_Point,
+                                                          data     = Slot_physicalData,
+                                                          span     = timeSlotSpan,
+                                                          coverage = 0.0) 
+                    
+                    logger.debug('Done aggregating, slot: %s', dataTimeSlot)
+                    return dataTimeSlot
+
+        #=======================
+        #   New approach
+        #=======================
+        else:
+            if len(dataTimeSeries) == 0:
+                if raise_if_no_data:
+                    raise NoDataException('This slot has coverage of 0.0, cannot compute any data! (start={}, end={})'.format(start_Point, end_Point))
+                else:
+                    Slot_physicalData = self.Sensor.Points_type.data_type(labels  = Slot_data_labels_to_generate,
+                                                                          values  = [None for _ in Slot_data_labels_to_generate], # Force "trustme" to allow None in data
+                                                                          trustme = True)
+                    
+                    dataTimeSlot = self.Sensor.Slots_type(start    = start_Point,
+                                                          end      = end_Point,
+                                                          data     = Slot_physicalData,
+                                                          span     = timeSlotSpan,
+                                                          coverage = 0.0) 
+                    
+                    logger.debug('Done aggregating, slot: %s', dataTimeSlot)
+                    return dataTimeSlot
+        
 
         #--------------------------------------------
         # Understand the labels to produce and to 
@@ -390,10 +415,18 @@ class DataTimeSeriesAggregatorProcess(object):
                 # TODO: leave or remove the above if for code readability?
                 
                 while slot_end_dt < dataTimePoint.dt:
-                    
+                    logger.debug('Checking for end {} with point {}'.format(slot_end_dt, dataTimePoint.dt))
                     # If we are in the pre-first slot, just silently spin a new slot:
                     if slot_start_dt is not None:
-                                
+                        
+                        # Append last point. Can be appended to multiple slots, this is normal since
+                        # the empty slots in the middle will have only a far prev and a far next.
+                        try:
+                            filtered_dataTimeSeries.append(dataTimePoint)
+                        except InputException:
+                            # It was already present.. this happens, should be worth checking why?
+                            pass
+                        
                         logger.debug('SlotStream: this slot (start={}, end={}) is closed, now aggregating it..'.format(slot_start_dt, slot_end_dt))
 
                         # Aggregate

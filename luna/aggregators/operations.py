@@ -1,6 +1,11 @@
-
 from luna.datatypes.dimensional import DataTimeSeries
 from luna.common.exceptions import ConsistencyException
+from luna.aggregators.utilities import clean_and_reconstruct
+
+# Logger
+import logging
+logger = logging.getLogger(__name__)
+
 
 class Operation(object):
     
@@ -17,17 +22,31 @@ class AVG(Operation):
     
     @staticmethod
     def compute_on_Points(dataSeries, start_Point, end_Point):
-           
+        
+        # Support vars
         sum = 0.0
         
-        # Compute total lenght
-        total_weight   = (end_Point.operation_value - start_Point.operation_value)
-        prev_dataPoint = None
-        prev_weight    = None
-        prev_value     = None
-        weighted       = None
+        logger.debug('')
+        logger.debug('====================================  START  =====================================')
+        logger.debug('from: {}'.format(start_Point.dt))
+        logger.debug('to:   {}'.format(end_Point.dt))
         
+        # Support vars
+        start_Point_t   = start_Point.t # start_Point.operation_value works as well (why?)
+        end_Point_t     = end_Point.t   # end_Point.operation_value works as well (why?)
+        start_Point_dt  = start_Point.dt
+        end_Point_dt    = end_Point.dt
+        weighted        = None
+        operation_label = None
+        slot_lenght_t   = end_Point.t - start_Point.t
+        slot_value_weighted = 0
+        
+        # A couple of checks based on the first point
+        # TOOD: can we have a time series with mixed point with validty regions and no? If s, this check is weak.
         for this_dataPoint in dataSeries:
+            
+            # Set operation_label
+            operation_label = this_dataPoint.data.lazy_filter_label
             
             # Set if weighetd avg or not
             if weighted is None:
@@ -35,102 +54,45 @@ class AVG(Operation):
                     this_dataPoint.validity_region
                     weighted = True
                 except AttributeError:
-                    weighted = False                
-                
-            if weighted:
-                # Special case of only one point:
-                if len(dataSeries) == 1:
-                    
-                    sum = this_dataPoint.operation_value
-                    
-                    if this_dataPoint.validity_region.start < start_Point:
-                        # Weight differently
-                        pass
-                    if this_dataPoint.validity_region.end > end_Point:
-                        # Weight differently
-                        pass
-                    
-                    # Ok, break.
-                    break
-                
-                # Special case of the first point and more than one point
-                if prev_dataPoint is None:
-                    prev_dataPoint = this_dataPoint
-                    continue
-                
-     
-                # If we have two points..
-                prev_dataPoint_validiy_region_start = prev_dataPoint.validity_region.start
-                prev_dataPoint_validiy_region_end   = prev_dataPoint.validity_region.end       
-                this_dataPoint_validiy_region_start = this_dataPoint.validity_region.start
-                this_dataPoint_validiy_region_end   = this_dataPoint.validity_region.end
-
-                # Set correct limits                
-                if prev_dataPoint_validiy_region_start < start_Point:
-                    prev_dataPoint_validiy_region_start = start_Point
-                if this_dataPoint_validiy_region_start < start_Point:
-                    this_dataPoint_validiy_region_start = start_Point              
-                if prev_dataPoint_validiy_region_end > end_Point:
-                    prev_dataPoint_validiy_region_end = end_Point                            
-                if this_dataPoint_validiy_region_end > end_Point:
-                    this_dataPoint_validiy_region_end = end_Point   
-                
-                # Set correct prev_end:
-                prev_dataPoint_validiy_region_end = prev_dataPoint_validiy_region_end if  this_dataPoint_validiy_region_start > prev_dataPoint_validiy_region_end else this_dataPoint_validiy_region_start
-                
-                # Set correct weight
-                if this_dataPoint_validiy_region_start < prev_dataPoint_validiy_region_end: # gt is correctly handled
-                    #case='A'
-                    prev_weight = (this_dataPoint_validiy_region_start.operation_value - prev_dataPoint_validiy_region_start.operation_value) # ..Sub is not?
-                else:
-                    #case='B'
-                    prev_weight = (prev_dataPoint_validiy_region_end.operation_value - prev_dataPoint_validiy_region_start.operation_value)
-                    
-                if prev_weight<0:
-                    # This happens in case the prev point is not contained at all (including the validity region) in the current slot.
-                    # Set prev_weight= 0 to skip the point. TODO: improve this part
-                    prev_weight = 0
-                    
-                    # DEBUG of the above
-                    #print 'case:', case
-                    #print 'this_dataPoint_validiy_region_start.operation_value', this_dataPoint_validiy_region_start.operation_value
-                    #print 'prev_dataPoint_validiy_region_start.operation_value', prev_dataPoint_validiy_region_start.operation_value 
-                    #print 'prev_dataPoint_validiy_region_end.operation_value', prev_dataPoint_validiy_region_end.operation_value      
-                    #for point in dataSeries:
-                    #    print point
-                    #    print point.validity_region.start
-                    #    print point.validity_region.end  
-                    #raise ConsistencyException('Got negative weight: {}. Boundary conditions: prev_dataPoint={}, this_dataPoint={}'.format(prev_weight, prev_dataPoint, this_dataPoint))
-                
-                # Compute
-                sum += ( prev_weight * prev_dataPoint.data.operation_value )
-                
-                # Reassign
-                prev_dataPoint = this_dataPoint
-          
-            else:
-                sum += this_dataPoint.data.operation_value
-    
-        if weighted:
-            # Last step in case of no 'next' point:
-            if prev_weight is not None and prev_dataPoint.Point_part <= end_Point:
-                
-                # Set correct limits                
-                if prev_dataPoint_validiy_region_start < start_Point:
-                    prev_dataPoint_validiy_region_start = start_Point
-                if this_dataPoint_validiy_region_start < start_Point:
-                    this_dataPoint_validiy_region_start = start_Point              
-                prev_weight = (prev_dataPoint_validiy_region_end.operation_value - prev_dataPoint_validiy_region_start.operation_value)
-                
-                # Set and add sum
-                prev_value  = this_dataPoint.data.operation_value
-                sum += (prev_weight*prev_value)
+                    weighted = False
+            break
         
-            
-            return sum/total_weight
-    
-        else:        
+        #=============================
+        # Not Weighted
+        #=============================
+        if not weighted:    
+            for this_dataPoint in dataSeries:
+                sum += this_dataPoint.data.operation_value
             return sum/len(dataSeries)
+
+
+        #=============================
+        # Weighted
+        #=============================
+        logger.debug(dataSeries)
+        
+        cleaned_dataSeries = clean_and_reconstruct(dataSeries, start_Point_dt, end_Point_dt)
+
+        for subslot in cleaned_dataSeries:
+            logger.debug('    {}'.format(subslot))
+            
+            subslot_lenght_t = (subslot.end-subslot.start).t
+            subslot_value_weighted = subslot.data[operation_label] * subslot_lenght_t 
+            
+            logger.debug('      subslot_lenght_t:       {}'.format(subslot_lenght_t))
+            logger.debug('      subslot.data[label]:    {:.20f}'.format(subslot.data[operation_label]))
+            logger.debug('      subslot_value_weighted: {:.20f}'.format(subslot_value_weighted))
+            
+            slot_value_weighted += subslot_value_weighted 
+
+        slot_value = slot_value_weighted / slot_lenght_t
+        logger.debug('   ----------------------->  {:.20f} '.format(slot_value))
+        
+        logger.debug('====================================  END  =====================================')
+        
+        return slot_value
+
+
 
 
     @staticmethod

@@ -1,13 +1,9 @@
-
 from luna.common.exceptions import ConsistencyException
 from luna.spacetime.time import s_from_dt
 from luna.common.exceptions import InputException
 from luna.datatypes.dimensional import Point
 
-#--------------------------
-#    Logger
-#--------------------------
-
+#  Logger
 import logging
 logger = logging.getLogger(__name__)
 
@@ -202,7 +198,7 @@ from luna.spacetime.time import dt
 def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
     
     # Log
-    logger.debug('Called clean_and_reconstruct on {}'.format(dataTimePointSeries))
+    logger.debug('Called clean_and_reconstruct on {}; from {} to {}'.format(dataTimePointSeries, from_dt, to_dt))
     
     # Support structure
     class SimpleDataTimePoint(object):
@@ -231,14 +227,14 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
     def fix_overlap_with_next(simpleDataTimePoint, this_dataTimePoint, next_dataTimePoint):
         offset_t = (this_dataTimePoint.validity_region.end.t - next_dataTimePoint.validity_region.start.t)/2
         new_valid_to_t = this_dataTimePoint.validity_region.end.t - offset_t
-        new_valid_to = TimePoint(t=new_valid_to_t)
+        new_valid_to = TimePoint(t=new_valid_to_t, tz=timezone)
         logger.debug('  Old valid to: {}, new valid_to: {}'.format(this_dataTimePoint.validity_region.end, new_valid_to))
         simpleDataTimePoint.valid_to = new_valid_to
 
     def fix_overlap_with_prev(simpleDataTimePoint, this_dataTimePoint, prev_dataTimePoint):
         offset_t = (prev_dataTimePoint.validity_region.end.t - this_dataTimePoint.validity_region.start.t)/2
         new_valid_from_t = this_dataTimePoint.validity_region.start.t + offset_t
-        new_valid_from = TimePoint(t=new_valid_from_t)
+        new_valid_from = TimePoint(t=new_valid_from_t, tz=timezone)
         logger.debug('  Old valid from: {}, new valid_from: {}'.format(this_dataTimePoint.validity_region.start, new_valid_from))
         simpleDataTimePoint.valid_from = new_valid_from
 
@@ -252,7 +248,7 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
     def reconstruct_missing_data(simpleSeries, this_dataTimePoint, next_dataTimePoint):
         offset_t = (next_dataTimePoint.validity_region.start.t - this_dataTimePoint.validity_region.end.t)/2       
         reconstructed_timestamp_t = this_dataTimePoint.validity_region.end.t + offset_t
-        reconstructed_timestamp =  TimePoint(t=reconstructed_timestamp_t)
+        reconstructed_timestamp =  TimePoint(t=reconstructed_timestamp_t, tz=timezone)
         
         # Reconstruct data
         #PhysicalData( labels = ['temp_C'], values = [25.5] )
@@ -261,7 +257,7 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
             reconstructed_value = (this_dataTimePoint.data[label] + next_dataTimePoint.data[label])/2
             reconstructed_values.append(reconstructed_value)
             
-        reconstructed_data = this_dataTimePoint.data.__class__(labels=this_dataTimePoint.data.labels, values=reconstructed_values)
+        reconstructed_data = this_dataTimePoint.data.__class__(labels=this_dataTimePoint.data.labels, values=reconstructed_values) # TODO: here we miss data.lazy_filter_label if set, and probably other stuff..
         reconstructed_dataTimePoint = this_dataTimePoint.__class__(dt = reconstructed_timestamp.dt,
                                                                    data = reconstructed_data,
                                                                    validity_region = TimeSlot(span='{}u'.format(int(offset_t*2*1000000))))
@@ -274,8 +270,12 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
 
    
     # Support vars
-    simpleSeries = [] 
+    simpleSeries = []
+    timezone     = None 
     
+    # Sanity checks
+    if len(dataTimePointSeries) == 0:
+        raise InputException('Got empty dataTimePointSeries')
  
     # Start    
     for i, this_dataTimePoint in enumerate(dataTimePointSeries):
@@ -284,6 +284,10 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
         logger.debug(' {}'.format(this_dataTimePoint.validity_region.start))
         logger.debug(' {}'.format(this_dataTimePoint.timePoint))
         logger.debug(' {}'.format(this_dataTimePoint.validity_region.end))
+
+        # Set time zone if not already done
+        timezone = this_dataTimePoint.timePoint.tz
+        logger.debug('timezone: {}'.format(timezone))
 
         #==============================
         # Special case: only one point
@@ -378,27 +382,30 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
     # NOTE: in theory, in the following, in case of no data you could right or left fill and cover 
     # entire segments completely dislocated in respect to the time series. Coverage would be zero.
 
+    # Support vars for the next part
+    simpleSeries_first_Point = simpleSeries[0]
+    simpleSeries_last_Point  = simpleSeries[-1]
     
     if from_dt is not None:
         
-        # Do we have data?
-        if from_dt > simpleSeries[-1].valid_to.dt:
-            return None
+        # Do we have (left) displacement?
+        if from_dt > simpleSeries_last_Point.valid_to.dt:
+            raise NotImplementedError('Left Displacement')
         
         # Do we have to truncate, add a point at the beginning in leftfill or do nothing?
-        if simpleSeries[0].valid_from.dt >= from_dt:
+        if simpleSeries_first_Point.valid_from.dt >= from_dt:
             # Add a point in leftfill
-            logger.debug('Will add a point in leftfill from {} to {}'.format(from_dt, simpleSeries[0].valid_from.dt)) 
+            logger.debug('Will add a point in leftfill from {} to {}'.format(from_dt, simpleSeries_first_Point.valid_from.dt)) 
             
             # Compute span
             from_t = TimePoint(dt=from_dt).t
-            offset_t = (simpleSeries[0].valid_from.t - from_t)/2
+            offset_t = (simpleSeries_first_Point.valid_from.t - from_t)/2
             timestamp_t = from_t + offset_t
-            timestamp_dt = TimePoint(t=timestamp_t).dt 
+            timestamp_dt = TimePoint(t=timestamp_t, tz=timezone).dt 
             
             # Create dataTimePoint
             leftfilled_dataTimePoint = dataTimePointSeries.byindex(0).__class__(dt = timestamp_dt,
-                                                                                data = simpleSeries[0].data,
+                                                                                data = simpleSeries_first_Point.data,
                                                                                 validity_region = TimeSlot(span='{}u'.format(int(offset_t*2*1000000))))
             # Convert to simple point
             leftfilled_simpleDataTimePoint = SimpleDataTimePoint(leftfilled_dataTimePoint)
@@ -414,32 +421,36 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
                 logger.debug(from_dt)
                 logger.debug(simpleDataTimePoint.valid_to.dt)
                 if simpleDataTimePoint.valid_from.dt <= from_dt and from_dt < simpleDataTimePoint.valid_to.dt:
-                    logger.debug('Will truncate at #{}, {}'.format(i,simpleDataTimePoint.ts)) 
-                    simpleDataTimePoint.valid_from = TimePoint(dt=from_dt)
+                    logger.debug('Will truncate from #{}, {}'.format(i,simpleDataTimePoint.ts)) 
+                    simpleDataTimePoint.valid_from = TimePoint(dt=from_dt, tz=timezone)
                     simpleSeries = simpleSeries[i:]
                     break    
+
+    # Support vars for the next part
+    simpleSeries_first_Point = simpleSeries[0]
+    simpleSeries_last_Point  = simpleSeries[-1]
         
     if to_dt is not None:
 
-        # Do we have data?
-        if to_dt < simpleSeries[0].valid_from.dt:
-            return None
+        # Do we have (right) displacement?
+        if to_dt < simpleSeries_first_Point.valid_from.dt:
+            raise ConsistencyException('Right Displacement')
                
         # Do we have to truncate, add a point at the end in right or do nothing?
-        if simpleSeries[-1].valid_to.dt < to_dt:
+        if simpleSeries_last_Point.valid_to.dt < to_dt:
             
             # Add a Point in leftfill
-            logger.debug('Will add a point in rightfill from {} to {}'.format(simpleSeries[-1].valid_to.dt, to_dt)) 
+            logger.debug('Will add a point in rightfill from {} to {}'.format(simpleSeries_last_Point.valid_to.dt, to_dt)) 
             
             # Compute span
             to_t = TimePoint(dt=to_dt).t
-            offset_t = (to_t - simpleSeries[-1].valid_to.t)/2
-            timestamp_t = simpleSeries[-1].valid_to.t + offset_t
-            timestamp_dt = TimePoint(t=timestamp_t).dt 
+            offset_t = (to_t - simpleSeries_last_Point.valid_to.t)/2
+            timestamp_t = simpleSeries_last_Point.valid_to.t + offset_t
+            timestamp_dt = TimePoint(t=timestamp_t, tz=timezone).dt 
             
             # Create dataTimePoint
             rightfilled_dataTimePoint = dataTimePointSeries.byindex(0).__class__(dt = timestamp_dt,
-                                                                                data = simpleSeries[-1].data,
+                                                                                data = simpleSeries_last_Point.data,
                                                                                 validity_region = TimeSlot(span='{}u'.format(int(offset_t*2*1000000))))
             # Convert to simple point
             rightfilled_simpleDataTimePoint = SimpleDataTimePoint(rightfilled_dataTimePoint)
@@ -457,7 +468,7 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
                 logger.debug(simpleDataTimePoint.valid_to.dt)
                 if simpleDataTimePoint.valid_from.dt < to_dt and to_dt < simpleDataTimePoint.valid_to.dt:
                     logger.debug('Will truncate at #{}, {}'.format(i,simpleDataTimePoint.ts)) 
-                    simpleDataTimePoint.valid_to = TimePoint(dt=to_dt)  
+                    simpleDataTimePoint.valid_to = TimePoint(dt=to_dt, tz=timezone)  
                     simpleSeries = simpleSeries[:i+1]
                     break      
         
