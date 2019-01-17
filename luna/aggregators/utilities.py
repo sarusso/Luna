@@ -193,3 +193,255 @@ def compute_1D_coverage(dataSeries, start_Point, end_Point, trustme=False):
 
 
 
+
+
+
+from luna.datatypes.dimensional import DataTimePoint, PhysicalData, PhysicalDataTimePoint, DataTimeSeries, TimeSlot, PhysicalDataTimeSlot, TimePoint
+from luna.spacetime.time import dt
+
+def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
+    
+    # Log
+    logger.debug('Called clean_and_reconstruct on {}'.format(dataTimePointSeries))
+    
+    # Support structure
+    class SimpleDataTimePoint(object):
+        
+        def __init__(self, dataTimePoint):
+            self.ts         = dataTimePoint.timePoint
+            self.valid_from = dataTimePoint.validity_region.start
+            self.valid_to   = dataTimePoint.validity_region.end
+            self.data       = dataTimePoint.data
+
+
+    # Support functions  
+    def overlap(first_dataTimePoint, second_dataTimePoint):
+        '''Detects an overlp between validity regions of two points'''
+        
+        if first_dataTimePoint > second_dataTimePoint:
+            raise InputException('Second datTimePoint preceeds the first, please invert them in the call')
+        
+        # Note: equal is OK regions, slots etc. are always left excluded
+        if first_dataTimePoint.validity_region.end > second_dataTimePoint.validity_region.start:
+            logger.debug(' Detected overlap between {} and {}'.format(first_dataTimePoint, second_dataTimePoint))
+            return True
+        else:
+            return False
+
+    def fix_overlap_with_next(simpleDataTimePoint, this_dataTimePoint, next_dataTimePoint):
+        offset_t = (this_dataTimePoint.validity_region.end.t - next_dataTimePoint.validity_region.start.t)/2
+        new_valid_to_t = this_dataTimePoint.validity_region.end.t - offset_t
+        new_valid_to = TimePoint(t=new_valid_to_t)
+        logger.debug('  Old valid to: {}, new valid_to: {}'.format(this_dataTimePoint.validity_region.end, new_valid_to))
+        simpleDataTimePoint.valid_to = new_valid_to
+
+    def fix_overlap_with_prev(simpleDataTimePoint, this_dataTimePoint, prev_dataTimePoint):
+        offset_t = (prev_dataTimePoint.validity_region.end.t - this_dataTimePoint.validity_region.start.t)/2
+        new_valid_from_t = this_dataTimePoint.validity_region.start.t + offset_t
+        new_valid_from = TimePoint(t=new_valid_from_t)
+        logger.debug('  Old valid from: {}, new valid_from: {}'.format(this_dataTimePoint.validity_region.start, new_valid_from))
+        simpleDataTimePoint.valid_from = new_valid_from
+
+    def missing_data(this_dataTimePoint, next_dataTimePoint):
+        if this_dataTimePoint.validity_region.end.t < next_dataTimePoint.validity_region.start.t:
+            logger.debug(' Detected missing data between {} and {}'.format(this_dataTimePoint.validity_region.end.dt, next_dataTimePoint.validity_region.start.dt))
+            return True
+        else:
+            return False
+    
+    def reconstruct_missing_data(simpleSeries, this_dataTimePoint, next_dataTimePoint):
+        offset_t = (next_dataTimePoint.validity_region.start.t - this_dataTimePoint.validity_region.end.t)/2       
+        reconstructed_timestamp_t = this_dataTimePoint.validity_region.end.t + offset_t
+        reconstructed_timestamp =  TimePoint(t=reconstructed_timestamp_t)
+        
+        # Reconstruct data
+        #PhysicalData( labels = ['temp_C'], values = [25.5] )
+        reconstructed_values = []
+        for label in this_dataTimePoint.data.labels:
+            reconstructed_value = (this_dataTimePoint.data[label] + next_dataTimePoint.data[label])/2
+            reconstructed_values.append(reconstructed_value)
+            
+        reconstructed_data = this_dataTimePoint.data.__class__(labels=this_dataTimePoint.data.labels, values=reconstructed_values)
+        reconstructed_dataTimePoint = this_dataTimePoint.__class__(dt = reconstructed_timestamp.dt,
+                                                                   data = reconstructed_data,
+                                                                   validity_region = TimeSlot(span='{}u'.format(int(offset_t*2*1000000))))
+        
+        logger.debug(' Reconstructed dataTimePoint {} from {} to {}'.format(reconstructed_dataTimePoint, reconstructed_dataTimePoint.validity_region.start.dt, reconstructed_dataTimePoint.validity_region.end.dt))
+
+        simpleSeries.append(SimpleDataTimePoint(reconstructed_dataTimePoint))
+        #pass
+
+
+   
+    # Support vars
+    simpleSeries = [] 
+    
+ 
+    # Start    
+    for i, this_dataTimePoint in enumerate(dataTimePointSeries):
+        logger.debug('--------------------------------------------------------------------------------')
+        logger.debug('{}'.format(this_dataTimePoint))
+        logger.debug(' {}'.format(this_dataTimePoint.validity_region.start))
+        logger.debug(' {}'.format(this_dataTimePoint.timePoint))
+        logger.debug(' {}'.format(this_dataTimePoint.validity_region.end))
+
+        #==============================
+        # Special case: only one point
+        #==============================
+        if len(dataTimePointSeries) == 1:
+            
+            # Create SimpleDataTimePoint
+            simpleDataTimePoint = SimpleDataTimePoint(this_dataTimePoint)
+  
+            # Append to simpleSeries
+            simpleSeries.append(simpleDataTimePoint)
+        
+
+        #==============================
+        # Special case: first point
+        #==============================
+
+        # This is the first point
+        elif i == 0:
+            
+            # Set the next
+            next_dataTimePoint = dataTimePointSeries.byindex(i+1)
+
+            # Create SimpleDataTimePoint
+            simpleDataTimePoint = SimpleDataTimePoint(this_dataTimePoint)
+        
+            # Do we have any overlap with the next?
+            if overlap(this_dataTimePoint, next_dataTimePoint):
+                fix_overlap_with_next(simpleDataTimePoint, this_dataTimePoint, next_dataTimePoint)
+            
+            # Append to simpleSeries
+            simpleSeries.append(simpleDataTimePoint)
+
+            # Do we have missing data with the next?
+            if missing_data(this_dataTimePoint, next_dataTimePoint):
+                reconstruct_missing_data(simpleSeries, this_dataTimePoint, next_dataTimePoint)
+         
+
+        #==============================
+        # Special case: last point
+        #==============================
+        elif i == len(dataTimePointSeries)-1:
+            
+            # Set the prev
+            prev_dataTimePoint = dataTimePointSeries.byindex(i-1)
+
+            # Create SimpleDataTimePoint
+            simpleDataTimePoint = SimpleDataTimePoint(this_dataTimePoint)
+
+            # Do we have any overlap with the prev?
+            if overlap(prev_dataTimePoint, this_dataTimePoint):
+                fix_overlap_with_prev(simpleDataTimePoint, this_dataTimePoint, prev_dataTimePoint)
+ 
+            # Append to simpleSeries
+            simpleSeries.append(simpleDataTimePoint)
+
+
+
+        #==============================
+        # Standard case
+        #==============================
+        else:
+
+            # Set the prev
+            prev_dataTimePoint = dataTimePointSeries.byindex(i-1)
+           
+            # Set the next
+            next_dataTimePoint = dataTimePointSeries.byindex(i+1)
+
+            # Create SimpleDataTimePoint
+            simpleDataTimePoint = SimpleDataTimePoint(this_dataTimePoint)
+
+            # Do we have any overlap with the prev?
+            if overlap(prev_dataTimePoint, this_dataTimePoint):
+                fix_overlap_with_prev(simpleDataTimePoint, this_dataTimePoint, prev_dataTimePoint)
+
+            # Do we have any overlap with the next?
+            if overlap(this_dataTimePoint, next_dataTimePoint):
+                fix_overlap_with_next(simpleDataTimePoint, this_dataTimePoint, next_dataTimePoint)
+            
+            # Append to simpleSeries
+            simpleSeries.append(simpleDataTimePoint)
+            
+            # Do we have missing data with the next?
+            if missing_data(this_dataTimePoint, next_dataTimePoint):
+                reconstruct_missing_data(simpleSeries, this_dataTimePoint, next_dataTimePoint)
+
+
+
+    logger.debug('--------------------------------------------------------------------------------')
+
+    
+    if from_dt is not None:
+        # Do we have to add a point at the beginning in leftfill?
+        
+        if simpleSeries[0].valid_from.dt > from_dt:
+            # Add a point in leftfill
+            logger.debug('Will add a point in leftfill from {} to {}'.format(from_dt, simpleSeries[0].valid_from.dt)) 
+            
+            # Compute span
+            from_t = TimePoint(dt=from_dt).t
+            offset_t = (simpleSeries[0].valid_from.t - from_t)/2
+            timestamp_t = from_t + offset_t
+            timestamp_dt = TimePoint(t=timestamp_t).dt 
+            
+            # Create dataTimePoint
+            leftfilled_dataTimePoint = dataTimePointSeries.byindex(0).__class__(dt = timestamp_dt,
+                                                                                data = simpleSeries[0].data,
+                                                                                validity_region = TimeSlot(span='{}u'.format(int(offset_t*2*1000000))))
+            # Convert to simple point
+            leftfilled_simpleDataTimePoint = SimpleDataTimePoint(leftfilled_dataTimePoint)
+            
+            # Add to simple list
+            simpleSeries = [leftfilled_simpleDataTimePoint] + simpleSeries
+            
+        
+        else:
+            # Find where the from_dt falls and truncate the Point there.
+            for i, simpleDataTimePoint in enumerate(simpleSeries):
+                logger.debug(simpleDataTimePoint.valid_from.dt)
+                logger.debug(from_dt)
+                logger.debug(simpleDataTimePoint.valid_to.dt)
+                if simpleDataTimePoint.valid_from.dt <= from_dt and from_dt < simpleDataTimePoint.valid_to.dt:
+                    logger.debug('Will truncate at #{}, {}'.format(i,simpleDataTimePoint.ts)) 
+                    simpleDataTimePoint.valid_from = TimePoint(dt=from_dt)
+        
+        
+        
+        
+#         # Note the elif here. 
+#         elif simpleSeries[0].valid_from < from_dt
+#             # Truncate point at from_dt
+#         
+#     
+#         
+#         pass
+    
+    if to_dt:
+        # Do we have to add a point at the beginning in rightfill?
+
+        pass
+    
+    
+    logger.debug('Now building dataTimeSlotSeries')
+    dataTimeSlotSeries = DataTimeSeries()
+    for simpleDataTimePoint in simpleSeries:
+        logger.debug(' Adding Slot {} to {}'.format(simpleDataTimePoint.valid_from, simpleDataTimePoint.valid_to))
+        dataTimeSlotSeries.append(PhysicalDataTimeSlot(start = simpleDataTimePoint.valid_from,
+                                                       end   = simpleDataTimePoint.valid_to,
+                                                       data  = simpleDataTimePoint.data))
+    
+    return dataTimeSlotSeries            
+
+
+
+
+
+
+
+
+

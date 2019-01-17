@@ -494,7 +494,7 @@ class Region(Space):
                     try:
                         self.span = self.Span_class(self.span)
                     except Exception as e:
-                        raise InputException('{}: provided span ("{}" of type "str") cannot be used to initialize the span: {}'.format(self.classname, kwargs['span'], str(e)))
+                        raise InputException('{}: The value provided ("{}" of type "str") cannot be used to initialize the span: {}'.format(self.classname, self.span, str(e)))
                 else:              
                     if not isinstance(self.span, self.Span_class):
                         raise InputException('{}: Wrong span type, I was expecting {} but i got {}.'.format(self.classname, self.Span_class, type(self.span)))
@@ -653,7 +653,7 @@ class Slot(Region):
                 # Check that start is before end
                 for i in range(len(start.values)):
                     if not start.values[i] < end.values[i]:
-                        raise InputException('{}: Start equal or after end on dimension #{}'.format(self.classname,i))
+                        raise InputException('{}: Start is equal to or grater than end on dimension #{}'.format(self.classname,i))
 
             # If we have no span, we set it anyway by using "start" and "end".
             # "start" and "end" are indeed Points for which the subtraction is defined,
@@ -1105,6 +1105,15 @@ class DataPoint(Point):
 
     def _get_Point_part(self, *args, **kwargs):
         return self.Point_part
+
+    # Sortcut for TimePoints
+    @property
+    def timePoint(self):
+        if isinstance (self.Point_part, TimePoint):
+            return self.Point_part
+        else:
+            raise ConsistencyException('My Point part is not a TimePoint')
+
 
     def filter_data_labels(self, labels):
         
@@ -1570,6 +1579,9 @@ class DataTimeSeries(TimeSeries):
             else:
                 raise Exception("Internal error when looking for the given timestamp (unconsistent condition)")
             count += 1
+
+    def byindex(self, index):
+        return self._data[index]
             
     #------------------
     # ALPHA code
