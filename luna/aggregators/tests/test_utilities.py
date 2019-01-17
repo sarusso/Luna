@@ -413,7 +413,7 @@ class test_clean_and_reconstruct(unittest.TestCase):
                                                          validity_region = TimeSlot(span='15m')))  
   
   
-        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, from_dt=dt(2019,10,1,0,45,0))
+        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, from_dt=dt(2019,10,1,1,26,13))
  
         print('-----------------------------')
         for slot in cleaned_dataTimeSlotSeries:
@@ -422,6 +422,32 @@ class test_clean_and_reconstruct(unittest.TestCase):
 
 
         # From case 2)
+        dataTimePointSeries = DataTimeSeries()
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,0,45,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [22.5] ),
+                                                         validity_region = TimeSlot(span='15m')))
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,0,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))        
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,15,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,30,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,45,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))  
+   
+   
+        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, from_dt=dt(2019,10,1,0,16,0))
+  
+        print('-----------------------------')
+        for slot in cleaned_dataTimeSlotSeries:
+            print slot, slot.data
+        print('-----------------------------')   
+         
+        # To case 1)
         dataTimePointSeries = DataTimeSeries()
         dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,0,45,0),
                                                          data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
@@ -438,27 +464,64 @@ class test_clean_and_reconstruct(unittest.TestCase):
         dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,45,0),
                                                          data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
                                                          validity_region = TimeSlot(span='15m')))  
-  
-  
-        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, from_dt=dt(2019,10,1,0,16,0))
- 
+    
+    
+        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, to_dt=dt(2019,10,1,1,13,27))
+   
         print('-----------------------------')
         for slot in cleaned_dataTimeSlotSeries:
             print slot, slot.data
-        print('-----------------------------')   
-        
-        #self.assertAlmostEqual(Slot_coverage, (0.5))
+        print('-----------------------------')  
+ 
+ 
+        # To case 2)
+        dataTimePointSeries = DataTimeSeries()
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,0,45,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,0,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))        
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,15,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,30,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,45,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [28.5] ),
+                                                         validity_region = TimeSlot(span='15m')))  
+    
+    
+        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, to_dt=dt(2019,10,1,2,16,0))
+   
+        print('-----------------------------')
+        for slot in cleaned_dataTimeSlotSeries:
+            print slot, slot.data
+        print('-----------------------------')  
 
-        #print('------------------------------')
-        #print(dataTimeSeries)
-        #for point in dataTimeSeries:
-        #    pass
-        #    #print(point, point.validity_region)
-        #print('------------------------------')
-        #print(Slot_coverage)
-        #print('------------------------------')
+
+        # From and to not in the time series
+        dataTimePointSeries = DataTimeSeries()    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,15,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,30,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,45,0),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))  
+    
+        # 1) from after end
+        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, from_dt=dt(2019,10,5,0,0,0))
+        self.assertEqual(cleaned_dataTimeSlotSeries, None)
 
         
+        # 2) to before start
+        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, to_dt=dt(2019,10,1,0,0,0))
+        self.assertEqual(cleaned_dataTimeSlotSeries, None)
+    
         
     def tearDown(self):
         pass

@@ -375,11 +375,18 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
 
     logger.debug('--------------------------------------------------------------------------------')
 
+    # NOTE: in theory, in the following, in case of no data you could right or left fill and cover 
+    # entire segments completely dislocated in respect to the time series. Coverage would be zero.
+
     
     if from_dt is not None:
-        # Do we have to add a point at the beginning in leftfill?
         
-        if simpleSeries[0].valid_from.dt > from_dt:
+        # Do we have data?
+        if from_dt > simpleSeries[-1].valid_to.dt:
+            return None
+        
+        # Do we have to truncate, add a point at the beginning in leftfill or do nothing?
+        if simpleSeries[0].valid_from.dt >= from_dt:
             # Add a point in leftfill
             logger.debug('Will add a point in leftfill from {} to {}'.format(from_dt, simpleSeries[0].valid_from.dt)) 
             
@@ -409,23 +416,52 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
                 if simpleDataTimePoint.valid_from.dt <= from_dt and from_dt < simpleDataTimePoint.valid_to.dt:
                     logger.debug('Will truncate at #{}, {}'.format(i,simpleDataTimePoint.ts)) 
                     simpleDataTimePoint.valid_from = TimePoint(dt=from_dt)
+                    simpleSeries = simpleSeries[i:]
+                    break    
         
-        
-        
-        
-#         # Note the elif here. 
-#         elif simpleSeries[0].valid_from < from_dt
-#             # Truncate point at from_dt
-#         
-#     
-#         
-#         pass
-    
-    if to_dt:
-        # Do we have to add a point at the beginning in rightfill?
+    if to_dt is not None:
 
-        pass
-    
+        # Do we have data?
+        if to_dt < simpleSeries[0].valid_from.dt:
+            return None
+               
+        # Do we have to truncate, add a point at the end in right or do nothing?
+        if simpleSeries[-1].valid_to.dt < to_dt:
+            
+            # Add a Point in leftfill
+            logger.debug('Will add a point in rightfill from {} to {}'.format(simpleSeries[-1].valid_to.dt, to_dt)) 
+            
+            # Compute span
+            to_t = TimePoint(dt=to_dt).t
+            offset_t = (to_t - simpleSeries[-1].valid_to.t)/2
+            timestamp_t = simpleSeries[-1].valid_to.t + offset_t
+            timestamp_dt = TimePoint(t=timestamp_t).dt 
+            
+            # Create dataTimePoint
+            rightfilled_dataTimePoint = dataTimePointSeries.byindex(0).__class__(dt = timestamp_dt,
+                                                                                data = simpleSeries[-1].data,
+                                                                                validity_region = TimeSlot(span='{}u'.format(int(offset_t*2*1000000))))
+            # Convert to simple point
+            rightfilled_simpleDataTimePoint = SimpleDataTimePoint(rightfilled_dataTimePoint)
+            
+            # Add to simple list
+            simpleSeries.append(rightfilled_simpleDataTimePoint)
+            
+        
+        else:
+            # Find where the to_dt falls and truncate the Point there.
+            for i, simpleDataTimePoint in enumerate(simpleSeries):
+                logger.debug('---')
+                logger.debug(simpleDataTimePoint.valid_from.dt)
+                logger.debug(to_dt)
+                logger.debug(simpleDataTimePoint.valid_to.dt)
+                if simpleDataTimePoint.valid_from.dt < to_dt and to_dt < simpleDataTimePoint.valid_to.dt:
+                    logger.debug('Will truncate at #{}, {}'.format(i,simpleDataTimePoint.ts)) 
+                    simpleDataTimePoint.valid_to = TimePoint(dt=to_dt)  
+                    simpleSeries = simpleSeries[:i+1]
+                    break      
+        
+
     
     logger.debug('Now building dataTimeSlotSeries')
     dataTimeSlotSeries = DataTimeSeries()
