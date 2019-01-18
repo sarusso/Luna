@@ -521,7 +521,37 @@ class test_clean_and_reconstruct(unittest.TestCase):
         # 2) to before start (right displacement?) 
         #cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries, to_dt=dt(2019,10,1,0,0,0))
         #self.assertEqual(cleaned_dataTimeSlotSeries, None)
-    
+
+
+    def test_clean_and_reconstruct_edgecases(self):
+
+
+        # Validity regions are aligned with slot starts and ends
+        dataTimePointSeries = DataTimeSeries()
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,0,52,30),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,7,30),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))        
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,22,30),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,37,30),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,52,30),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))  
+
+
+        cleaned_dataTimeSlotSeries = clean_and_reconstruct(dataTimePointSeries)
+
+        print('-----------------------------')
+        for slot in cleaned_dataTimeSlotSeries:
+            print slot
+        print('-----------------------------')
+
         
     def tearDown(self):
         pass

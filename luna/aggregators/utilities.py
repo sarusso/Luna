@@ -287,7 +287,7 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
 
         # Set time zone if not already done
         timezone = this_dataTimePoint.timePoint.tz
-        logger.debug('timezone: {}'.format(timezone))
+        #logger.debug('timezone: {}'.format(timezone))
 
         #==============================
         # Special case: only one point
@@ -393,7 +393,7 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
             raise NotImplementedError('Left Displacement')
         
         # Do we have to truncate, add a point at the beginning in leftfill or do nothing?
-        if simpleSeries_first_Point.valid_from.dt >= from_dt:
+        if simpleSeries_first_Point.valid_from.dt > from_dt:
             # Add a point in leftfill
             logger.debug('Will add a point in leftfill from {} to {}'.format(from_dt, simpleSeries_first_Point.valid_from.dt)) 
             
@@ -417,10 +417,11 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
         else:
             # Find where the from_dt falls and truncate the Point there.
             for i, simpleDataTimePoint in enumerate(simpleSeries):
+                logger.debug('--- Finding out if need to truncating based on from ---')
                 logger.debug(simpleDataTimePoint.valid_from.dt)
                 logger.debug(from_dt)
                 logger.debug(simpleDataTimePoint.valid_to.dt)
-                if simpleDataTimePoint.valid_from.dt <= from_dt and from_dt < simpleDataTimePoint.valid_to.dt:
+                if simpleDataTimePoint.valid_from.dt <= from_dt and from_dt < simpleDataTimePoint.valid_to.dt: # Extra care with the "<" here, different from below
                     logger.debug('Will truncate from #{}, {}'.format(i,simpleDataTimePoint.ts)) 
                     simpleDataTimePoint.valid_from = TimePoint(dt=from_dt, tz=timezone)
                     simpleSeries = simpleSeries[i:]
@@ -462,11 +463,11 @@ def clean_and_reconstruct(dataTimePointSeries, from_dt=None, to_dt=None):
         else:
             # Find where the to_dt falls and truncate the Point there.
             for i, simpleDataTimePoint in enumerate(simpleSeries):
-                logger.debug('---')
+                logger.debug('--- Finding out if need to truncating based on to ---')
                 logger.debug(simpleDataTimePoint.valid_from.dt)
                 logger.debug(to_dt)
                 logger.debug(simpleDataTimePoint.valid_to.dt)
-                if simpleDataTimePoint.valid_from.dt < to_dt and to_dt < simpleDataTimePoint.valid_to.dt:
+                if simpleDataTimePoint.valid_from.dt < to_dt and to_dt <= simpleDataTimePoint.valid_to.dt: # Extra care with the "<=" here, different from above
                     logger.debug('Will truncate at #{}, {}'.format(i,simpleDataTimePoint.ts)) 
                     simpleDataTimePoint.valid_to = TimePoint(dt=to_dt, tz=timezone)  
                     simpleSeries = simpleSeries[:i+1]

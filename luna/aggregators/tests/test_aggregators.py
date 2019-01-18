@@ -431,4 +431,65 @@ class test_aggregators(unittest.TestCase):
 
 
 
+    def test_edgecases_aggregations(self):   
+
+        sensor = SimpleSensor15m('084EB18E44FFA/7-MB-1')
+
+        aggregate_from_dt = dt(2019,10,1,0,0,0, tzinfo=sensor.timezone)
+        aggregate_to_dt   = dt(2019,10,2,2,30,0, tzinfo=sensor.timezone)
+
+        # Validity regions are aligned with slot starts and ends
+        dataTimePointSeries = DataTimeSeries()
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,0,52,30, tzinfo=sensor.timezone),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,7,30, tzinfo=sensor.timezone),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))        
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,22,30, tzinfo=sensor.timezone),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,37,30, tzinfo=sensor.timezone),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))    
+        dataTimePointSeries.append(PhysicalDataTimePoint(dt = dt(2019,10,1,1,52,30, tzinfo=sensor.timezone),
+                                                         data = PhysicalData( labels = ['temp_C'], values = [25.5] ),
+                                                         validity_region = TimeSlot(span='15m')))  
+
+
+
+            
+        dataTimeSeriesAggregatorProcess = DataTimeSeriesAggregatorProcess(timeSlotSpan      = TimeSlotSpan('15m'),
+                                                                          Sensor            = sensor,
+                                                                          data_to_aggregate = PhysicalDataTimePoint)
+
+
+        # Aggregate
+        dataTimeSeriesAggregatorProcess.start(dataTimeSeries = dataTimePointSeries,
+                                              start_dt       = aggregate_from_dt,
+                                              end_dt         = aggregate_to_dt,
+                                              rounded        = True,
+                                              threaded       = False)
+        
+        # Get results
+        aggregated_dataTimeSeries = dataTimeSeriesAggregatorProcess.get_results(until=None)
+
+
+        print('-----------  Original  -------------------')
+        print(dataTimePointSeries)
+        for point in dataTimePointSeries:
+            #print(point, point.data['temp_C'], point.validity_region)
+            print('0{}:{}, {} '.format(point.dt.hour,point.dt.minute, point.data['temp_C']))
+        print('----------- Aggregated -------------------')
+        print(aggregated_dataTimeSeries)
+        for slot in aggregated_dataTimeSeries:
+            #print(slot, slot.coverage)
+            print (slot.start, slot.end, slot.data['temp_C_AVG'], slot.coverage)
+        print('------------------------------')
+
+
+
+
+
+
 
